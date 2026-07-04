@@ -2,7 +2,7 @@
 
 # 自制IOT物联网显示面板（iot-visualization）
 
-[![version](https://img.shields.io/badge/version-v1.0.0-blue)](https://github.com/mio-kitten/iot-visualization)
+[![version](https://img.shields.io/badge/version-v1.0.1-blue)](https://github.com/mio-kitten/iot-visualization)
 [![platform](https://img.shields.io/badge/platform-Windows%2010%2B-green)](https://github.com/mio-kitten/iot-visualization)
 [![tech](https://img.shields.io/badge/tech-Vue%203-orange)](https://vuejs.org/)
 [![tech](https://img.shields.io/badge/tech-Electron%2028+-purple)](https://www.electronjs.org/)
@@ -68,6 +68,7 @@
    - SliderWidget（滑动条）
    - SwitchWidget（开关）
    - TextWidget（文本）
+   - TextareaWidget（多行文本）
 
 ### 编辑界面
 
