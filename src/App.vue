@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, provide, onUnmounted, computed, watch, nextTick } from 'vue'
+import { ref, provide, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useProject } from './composables/useProject'
 import { MqttClientWrapper } from './utils/mqttClient'
 import type { PlatformConfig, DataPoint, Widget, Project } from './types'
@@ -10,6 +10,10 @@ import SidebarRight from './components/SidebarRight.vue'
 import PlatformConfigModal from './components/PlatformConfigModal.vue'
 import ProjectManager from './components/ProjectManager.vue'
 import TopBar from './components/TopBar.vue'
+import RippleEffect from './components/RippleEffect.vue'
+import NetworkConfigModal from './components/NetworkConfigModal.vue'
+import CmdWarningModal from './components/CmdWarningModal.vue'
+import type { RippleItem } from './components/RippleEffect.vue'
 import { APP_VERSION } from './version'
 
 const {
@@ -32,6 +36,9 @@ const isConnected = ref(false)
 const isConnecting = ref(false)
 const showPlatformConfig = ref(false)
 const showProjectManager = ref(!currentProjectId.value)
+const showNetworkConfig = ref(false)
+const showCmdWarning = ref(true)
+const triggerCreateCount = ref(0)
 const selectedWidgetId = ref<string | null>(null)
 const selectedWidget = computed(() => {
   return currentProject.value?.widgets.find((w: Widget) => w.id === selectedWidgetId.value) || undefined
@@ -43,10 +50,15 @@ const showTopBar = ref(false)
 const scrollWrapperRef = ref<HTMLElement | null>(null)
 let topBarTimeout: number | null = null
 
+// 快捷切换项目冷却（0.8s 内禁止重复切换）
+const isSwitchCooldown = ref(false)
+
 const handleFullscreenChange = () => {
   if (!document.fullscreenElement && isFullscreen.value) {
     showTopBar.value = false
     isFullscreen.value = false
+    // 安全退出：清除选中组件、确保回到编辑界面
+    selectedWidgetId.value = null
   }
 }
 
@@ -57,8 +69,22 @@ const savedViewCenter = ref<{ x: number; y: number } | null>(null)
 
 /** 全屏（查看模式）时保持与编辑模式相同的视口中心 */
 watch(isFullscreen, async (val) => {
-  if (val && scrollWrapperRef.value) {
-    await nextTick()
+  if (val) {
+    // 进入全屏：顶栏自动滑下，停留 2.5s 后上移
+    showTopBar.value = true
+    if (topBarTimeout) {
+      clearTimeout(topBarTimeout)
+      topBarTimeout = null
+    }
+    topBarTimeout = window.setTimeout(() => {
+      showTopBar.value = false
+    }, 2500)
+    
+    if (!scrollWrapperRef.value) {
+      // 从项目管理进入时，scrollWrapperRef 尚未渲染，等待 DOM 更新
+      await nextTick()
+      if (!scrollWrapperRef.value) return
+    }
     const wrap = scrollWrapperRef.value
     
     if (savedViewCenter.value) {
@@ -67,29 +93,21 @@ watch(isFullscreen, async (val) => {
       wrap.scrollTop = Math.max(0, savedViewCenter.value.y - wrap.clientHeight / 2)
       savedViewCenter.value = null
     } else if (currentProject.value) {
-      // 降级：从组件群计算中心（首次进入等无保存记录的情况）
-      const widgets = currentProject.value.widgets
-      if (widgets.length === 0) return
-      
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
-      widgets.forEach(w => {
-        const cfg = w.config as { x: number; y: number; width: number; height: number }
-        if (cfg.x !== undefined) {
-          minX = Math.min(minX, cfg.x)
-          maxX = Math.max(maxX, cfg.x + (cfg.width || 0))
-          minY = Math.min(minY, cfg.y)
-          maxY = Math.max(maxY, cfg.y + (cfg.height || 0))
-        }
-      })
-      
-      const centerX = (minX + maxX) / 2
-      const centerY = (minY + maxY) / 2
-      const scrollToX = Math.max(0, centerX - wrap.clientWidth / 2)
-      const scrollToY = Math.max(0, centerY - wrap.clientHeight / 2)
-      
-      wrap.scrollLeft = scrollToX
-      wrap.scrollTop = scrollToY
+      // 降级：滚动到画布正中央（1500, 1500）
+      const canvasCenterX = 1500
+      const canvasCenterY = 1500
+      wrap.scrollLeft = Math.max(0, canvasCenterX - wrap.clientWidth / 2)
+      wrap.scrollTop = Math.max(0, canvasCenterY - wrap.clientHeight / 2)
     }
+  } else if (!val && scrollWrapperRef.value) {
+    // 退出全屏回到编辑模式：向右下方移动一段距离
+    await nextTick()
+    const wrap = scrollWrapperRef.value
+    wrap.scrollTo({
+      left: wrap.scrollLeft + 200,
+      top: wrap.scrollTop + 150,
+      behavior: 'smooth'
+    })
   }
 })
 
@@ -99,6 +117,66 @@ const healthCheckInterval = ref<number | null>(null)
 
 const pendingPlatformConfig = ref<PlatformConfig | null>(null)
 const defaultPlatformConfig = ref<PlatformConfig | null>(loadPlatformConfig())
+
+// 连接光效管理
+const rippleIdCounter = ref(0)
+const ripples = ref<RippleItem[]>([])
+
+const triggerRipple = (type: 'success' | 'error') => {
+  rippleIdCounter.value++
+  const id = rippleIdCounter.value
+  ripples.value.push({ id, type })
+  // 2.8s 后自动移除（匹配动画时长：1.2s散射 + 1.5s虚化）
+  setTimeout(() => {
+    ripples.value = ripples.value.filter(r => r.id !== id)
+  }, 2800)
+}
+
+// 监听连接状态变化 → 触发光效 + 全屏模式自动弹出顶栏
+watch(isConnected, (newVal, oldVal) => {
+  if (newVal === oldVal) return
+
+  if (newVal && !oldVal) {
+    // 从未连接 → 已连接：成功光效
+    triggerRipple('success')
+  } else if (!newVal && oldVal) {
+    // 从已连接 → 未连接：失败光效（包括手动断开）
+    triggerRipple('error')
+  }
+
+  // 全屏模式下：连接状态变化时强制弹出顶栏
+  if (isFullscreen.value) {
+    showTopBar.value = true
+    if (topBarTimeout) {
+      clearTimeout(topBarTimeout)
+      topBarTimeout = null
+    }
+    // 成功连接停留更久（5s），断开连接停留较短（2s）
+    const duration = newVal ? 5000 : 2000
+    topBarTimeout = window.setTimeout(() => {
+      showTopBar.value = false
+    }, duration)
+  }
+})
+
+// 监听连接中状态：连接失败（连接中结束但未连接上）
+watch(isConnecting, (newVal, oldVal) => {
+  if (oldVal && !newVal && !isConnected.value) {
+    // 连接中结束但未连接上 → 失败光效
+    triggerRipple('error')
+    // 全屏模式下：强制弹出顶栏
+    if (isFullscreen.value) {
+      showTopBar.value = true
+      if (topBarTimeout) {
+        clearTimeout(topBarTimeout)
+        topBarTimeout = null
+      }
+      topBarTimeout = window.setTimeout(() => {
+        showTopBar.value = false
+      }, 2000)
+    }
+  }
+})
 
 const getAllTopics = () => {
   if (!currentProject.value) return []
@@ -161,6 +239,8 @@ const showProjectManagerBtn = computed(() => !showProjectManager.value)
 
 /** 按项目ID保存编辑模式退出前的滚动位置 */
 const savedScrollPosMap = ref<Map<string, { left: number; top: number }>>(new Map())
+/** 全屏模式下的项目滚动位置缓存 */
+const savedFullscreenScrollPosMap = ref<Map<string, { left: number; top: number }>>(new Map())
 
 /** 编辑模式：进入时恢复上次位置/初始居中，离开时保存位置 */
 watch(showEditor, async (val) => {
@@ -176,8 +256,7 @@ watch(showEditor, async (val) => {
       requestAnimationFrame(() => {
         const w = scrollWrapperRef.value
         if (!w) return
-        w.scrollLeft = saved.left
-        w.scrollTop = saved.top
+        w.scrollTo({ left: saved.left, top: saved.top, behavior: 'smooth' })
       })
     } else {
       // 首次进入：滚到画布中心
@@ -185,8 +264,7 @@ watch(showEditor, async (val) => {
       requestAnimationFrame(() => {
         const w = scrollWrapperRef.value
         if (!w) return
-        w.scrollLeft = Math.max(0, (w.scrollWidth - w.clientWidth) / 2)
-        w.scrollTop = Math.max(0, (w.scrollHeight - w.clientHeight) / 2)
+        w.scrollTo({ left: Math.max(0, (w.scrollWidth - w.clientWidth) / 2), top: Math.max(0, (w.scrollHeight - w.clientHeight) / 2), behavior: 'smooth' })
       })
     }
   } else {
@@ -262,9 +340,6 @@ const connectToPlatform = async (config: PlatformConfig, isFromProjectSwitch = f
   } catch (error) {
     console.error('连接失败:', error)
     isConnected.value = false
-    if (!isFromProjectSwitch) {
-      alert('连接失败，请检查服务器地址和端口是否正确')
-    }
   } finally {
     isConnecting.value = false
   }
@@ -525,6 +600,7 @@ const startUpdateLoop = () => {
 const disconnectFromPlatform = () => {
   mqttClient.disconnect()
   isConnected.value = false
+  isConnecting.value = false
   stopHealthCheck()
   if (updateInterval.value) {
     clearInterval(updateInterval.value)
@@ -553,7 +629,26 @@ const stopHealthCheck = () => {
 const handleAddWidget = (type: string, x: number, y: number) => {
   if (!currentProjectId.value || isFullscreen.value) return
   
+  const isDoubleClick = x === -1
+  
+  // 双击添加时（x = -1）：组件左边缘紧靠侧栏右边缘，y 为鼠标高度
+  if (isDoubleClick && scrollWrapperRef.value) {
+    const wrap = scrollWrapperRef.value
+    const wrapRect = wrap.getBoundingClientRect()
+    // x：紧靠侧栏右边缘（即 scrollWrapper 可见区域的最左边）
+    x = wrap.scrollLeft
+    // y：将鼠标 clientY 转换为画布坐标
+    y = wrap.scrollTop + (y - wrapRect.top)
+  }
+  
   const widget = createWidget(type, x, y)
+  
+  // 双击添加时：y 上移组件自身高度的一半，使组件中心对准鼠标位置
+  if (isDoubleClick) {
+    const config = widget.config as { height: number; y: number }
+    config.y = y - config.height / 2
+  }
+  
   addWidget(currentProjectId.value, widget)
   widgetData.value.set(widget.id, new Map())
 }
@@ -606,35 +701,54 @@ const handleCreateProject = (name: string) => {
   }
 }
 
+/** 滚动到画布正中心 */
+const showCenterFlare = ref(false)
+const handleScrollToCenter = () => {
+  const wrap = scrollWrapperRef.value
+  if (!wrap) return
+  wrap.scrollTo({
+    left: Math.max(0, (wrap.scrollWidth - wrap.clientWidth) / 2),
+    top: Math.max(0, (wrap.scrollHeight - wrap.clientHeight) / 2),
+    behavior: 'smooth'
+  })
+  // 触发十字架闪烁动画
+  showCenterFlare.value = true
+  setTimeout(() => { showCenterFlare.value = false }, 3500)
+}
+
 const handleSelectProject = (projectId: string) => {
-  const previousConfig = currentProject.value?.platformConfig
+  // 冷却中禁止切换
+  if (isSwitchCooldown.value) return
+
+  // 设置冷却，0.8s 内不允许再次切换
+  isSwitchCooldown.value = true
+  setTimeout(() => { isSwitchCooldown.value = false }, 800)
+
+  // 统一断开当前连接（无论正在连接还是已连接）
+  disconnectFromPlatform()
+
   setCurrentProject(projectId)
   showProjectManager.value = false
-  
+
   const newProject = currentProject.value
   if (newProject?.platformConfig) {
-    const needsReconnect = !previousConfig || 
-      previousConfig.platform !== newProject.platformConfig.platform
-    
-    if (needsReconnect && isConnected.value) {
-      disconnectFromPlatform()
-    }
-    
-    if (isConnected.value && !needsReconnect) {
-      // 相同配置且已连接：只更新订阅主题，不重连
-      updateSubscriptions()
-    } else if (newProject.platformConfig) {
-      connectToPlatform(newProject.platformConfig, true)
-    }
-  } else if (isConnected.value) {
-    // 新项目无配置但已连接：断开
-    disconnectFromPlatform()
+    connectToPlatform(newProject.platformConfig, true)
   } else if (defaultPlatformConfig.value) {
     connectToPlatform(defaultPlatformConfig.value, true)
   }
 }
 
 const handleViewProject = (projectId: string) => {
+  // 冷却中禁止切换
+  if (isSwitchCooldown.value) return
+
+  // 设置冷却
+  isSwitchCooldown.value = true
+  setTimeout(() => { isSwitchCooldown.value = false }, 800)
+
+  // 统一断开当前连接
+  disconnectFromPlatform()
+
   setCurrentProject(projectId)
   showProjectManager.value = false
   isFullscreen.value = true
@@ -674,6 +788,20 @@ const handleOpenProjectManager = () => {
   showProjectManager.value = true
 }
 
+const handleCreateProjectClick = () => {
+  triggerCreateCount.value++
+}
+
+const handleOpenIoTService = () => {
+  showNetworkConfig.value = true
+}
+
+const handleCloseIoTService = () => {
+  showNetworkConfig.value = false
+}
+
+provide('openNetworkConfig', handleOpenIoTService)
+
 const toggleFullscreen = () => {
   if (!isFullscreen.value) {
     // 进入全屏前：保存编辑模式的视口中心（画布坐标）
@@ -687,7 +815,6 @@ const toggleFullscreen = () => {
     
     isFullscreen.value = true
     selectedWidgetId.value = null
-    showTopBar.value = false
     
     const container = document.querySelector('.app-container')
     if (container && !document.fullscreenElement) {
@@ -733,6 +860,46 @@ const handleMouseLeave = () => {
   showTopBar.value = false
 }
 
+// 画布拖拽平移（编辑/查看模式）
+const isPanning = ref(false)
+const panStart = ref({ mouseX: 0, mouseY: 0, scrollLeft: 0, scrollTop: 0 })
+
+const handleCanvasPanStart = (e: MouseEvent) => {
+  if (e.button !== 0) return
+  // 左键按下画布背景开始平移
+  isPanning.value = true
+  const wrap = scrollWrapperRef.value
+  if (wrap) {
+    panStart.value = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      scrollLeft: wrap.scrollLeft,
+      scrollTop: wrap.scrollTop
+    }
+    wrap.style.cursor = 'grabbing'
+  }
+}
+
+const handleCanvasPanMove = (e: MouseEvent) => {
+  if (!isPanning.value) return
+  const wrap = scrollWrapperRef.value
+  if (!wrap) return
+  const dx = e.clientX - panStart.value.mouseX
+  const dy = e.clientY - panStart.value.mouseY
+  wrap.scrollLeft = panStart.value.scrollLeft - dx
+  wrap.scrollTop = panStart.value.scrollTop - dy
+}
+
+const handleCanvasPanEnd = () => {
+  if (isPanning.value) {
+    isPanning.value = false
+    const wrap = scrollWrapperRef.value
+    if (wrap) {
+      wrap.style.cursor = ''
+    }
+  }
+}
+
 const handlePlatformConfigConfirm = async (config: PlatformConfig) => {
   if (!currentProject.value) {
     pendingPlatformConfig.value = config
@@ -750,46 +917,54 @@ const handlePlatformConfigConfirm = async (config: PlatformConfig) => {
 }
 
 watch(() => currentProjectId.value, async (newId, oldId) => {
-  // 编辑模式下切换项目：保存旧项目位置，恢复新项目位置
-  if (showEditor.value && oldId && newId && newId !== oldId) {
-    const wrap = scrollWrapperRef.value
-    if (wrap) {
-      // 保存当前项目位置
-      savedScrollPosMap.value.set(oldId, { left: wrap.scrollLeft, top: wrap.scrollTop })
+  // 切换项目：保存旧项目位置，恢复新项目位置
+  if (oldId && newId && newId !== oldId) {
+    if (showEditor.value) {
+      // 编辑模式：保存旧位置到编辑缓存
+      const wrap = scrollWrapperRef.value
+      if (wrap) {
+        savedScrollPosMap.value.set(oldId, { left: wrap.scrollLeft, top: wrap.scrollTop })
+      }
+    } else {
+      // 全屏模式：保存旧位置到全屏缓存
+      const wrap = scrollWrapperRef.value
+      if (wrap) {
+        savedFullscreenScrollPosMap.value.set(oldId, { left: wrap.scrollLeft, top: wrap.scrollTop })
+      }
     }
+    
     // 恢复新项目位置
-    const saved = savedScrollPosMap.value.get(newId)
+    const saved = showEditor.value
+      ? savedScrollPosMap.value.get(newId)
+      : savedFullscreenScrollPosMap.value.get(newId)
     await nextTick()
     requestAnimationFrame(() => {
       const w = scrollWrapperRef.value
       if (!w) return
       if (saved) {
-        w.scrollLeft = saved.left
-        w.scrollTop = saved.top
+        w.scrollTo({ left: saved.left, top: saved.top, behavior: 'smooth' })
       } else {
-        w.scrollLeft = Math.max(0, (w.scrollWidth - w.clientWidth) / 2)
-        w.scrollTop = Math.max(0, (w.scrollHeight - w.clientHeight) / 2)
+        w.scrollTo({ left: Math.max(0, (w.scrollWidth - w.clientWidth) / 2), top: Math.max(0, (w.scrollHeight - w.clientHeight) / 2), behavior: 'smooth' })
       }
     })
   }
 
   if (newId && newId !== oldId) {
+    // 冷却中禁止切换
+    if (isSwitchCooldown.value) return
+
+    // 设置冷却
+    isSwitchCooldown.value = true
+    setTimeout(() => { isSwitchCooldown.value = false }, 800)
+
+    // 统一断开当前连接
+    disconnectFromPlatform()
+
     const project = projects.value.find((p: Project) => p.id === newId)
     if (project?.platformConfig) {
-      const prevProject = oldId ? projects.value.find((p: Project) => p.id === oldId) : null
-      const needsReconnect = !prevProject?.platformConfig || 
-        prevProject.platformConfig.platform !== project.platformConfig.platform
-      
-      if (needsReconnect && isConnected.value) {
-        disconnectFromPlatform()
-      }
-      
-      if (isConnected.value && !needsReconnect) {
-        // 相同配置且已连接：只更新订阅主题，不重连
-        updateSubscriptions()
-      } else {
-        connectToPlatform(project.platformConfig, true)
-      }
+      connectToPlatform(project.platformConfig, true)
+    } else if (defaultPlatformConfig.value) {
+      connectToPlatform(defaultPlatformConfig.value, true)
     }
   }
 })
@@ -802,6 +977,12 @@ provide('mqttClient', mqttClient)
 provide('widgetData', widgetData)
 provide('sendMessage', handleSendMessage)
 
+// 挂载文档级平移事件
+onMounted(() => {
+  document.addEventListener('mousemove', handleCanvasPanMove)
+  document.addEventListener('mouseup', handleCanvasPanEnd)
+})
+
 onUnmounted(() => {
   disconnectFromPlatform()
   if (topBarTimeout) {
@@ -810,10 +991,23 @@ onUnmounted(() => {
   if (defaultPlatformConfig.value) {
     savePlatformConfig(defaultPlatformConfig.value)
   }
+  document.removeEventListener('mousemove', handleCanvasPanMove)
+  document.removeEventListener('mouseup', handleCanvasPanEnd)
 })
 </script>
 
 <template>
+  <Teleport to="body">
+    <NetworkConfigModal
+      v-if="showNetworkConfig"
+      @close="handleCloseIoTService"
+    />
+    <CmdWarningModal
+      v-if="showCmdWarning"
+      @close="showCmdWarning = false"
+    />
+  </Teleport>
+
   <div 
     class="app-container" 
     :class="{ 'fullscreen-mode': isFullscreen }"
@@ -827,10 +1021,14 @@ onUnmounted(() => {
       :title="headerTitle"
       :project-id="currentProjectId || ''"
       :projects="projects"
+      :switch-cooldown="isSwitchCooldown"
       @exit-fullscreen="toggleFullscreen"
       @connect="showPlatformConfig = true"
+      @disconnect="disconnectFromPlatform"
       @open-project-manager="handleOpenProjectManager"
       @select-project="handleSelectProject"
+      @scroll-to-center="handleScrollToCenter"
+      @open-iot-service="handleOpenIoTService"
     />
     
     <Header
@@ -842,11 +1040,15 @@ onUnmounted(() => {
       :show-project-selector="showProjectSelector"
       :is-editor-mode="showEditor"
       :show-project-manager-btn="showProjectManagerBtn"
+      :switch-cooldown="isSwitchCooldown"
       @connect="showPlatformConfig = true"
       @disconnect="disconnectFromPlatform"
       @open-project-manager="handleOpenProjectManager"
       @toggle-fullscreen="toggleFullscreen"
       @select-project="handleSelectProject"
+      @scroll-to-center="handleScrollToCenter"
+      @create-project="handleCreateProjectClick"
+      @open-iot-service="handleOpenIoTService"
     />
     
     <PlatformConfigModal
@@ -859,6 +1061,7 @@ onUnmounted(() => {
     <ProjectManager
       v-if="showProjectManager"
       :projects="projects"
+      :trigger-create-count="triggerCreateCount"
       @create="handleCreateProject"
       @select="handleSelectProject"
       @view="handleViewProject"
@@ -871,12 +1074,13 @@ onUnmounted(() => {
         @add-widget="handleAddWidget" 
       />
       
-      <div ref="scrollWrapperRef" class="canvas-scroll-wrapper" :class="{ 'editor-mode': showEditor }">
+      <div ref="scrollWrapperRef" class="canvas-scroll-wrapper" :class="{ 'editor-mode': showEditor }" @mousedown="handleCanvasPanStart">
         <MainCanvas
           :widgets="currentProject?.widgets || []"
           :selected-widget-id="selectedWidgetId"
           :widget-data="widgetData"
           :show-controls="showEditor"
+          :show-center-flare="showCenterFlare"
           @select-widget="handleSelectWidget"
           @add-widget="handleAddWidget"
           @update-widget="handleUpdateWidget"
@@ -893,6 +1097,9 @@ onUnmounted(() => {
         @clear-data="selectedWidgetId && handleClearWidgetData(selectedWidgetId)"
       />
     </div>
+    
+    <!-- 连接光效 -->
+    <RippleEffect :ripples="ripples" />
     
     <!-- 页面水印 -->
     <div class="watermark">

@@ -2,7 +2,7 @@
 
 # 自制IOT物联网显示面板（iot-visualization）
 
-[![version](https://img.shields.io/badge/version-v1.0.1-blue)](https://github.com/mio-kitten/iot-visualization)
+[![version](https://img.shields.io/badge/version-v2.0.0-blue)](https://github.com/mio-kitten/iot-visualization)
 [![platform](https://img.shields.io/badge/platform-Windows%2010%2B-green)](https://github.com/mio-kitten/iot-visualization)
 [![tech](https://img.shields.io/badge/tech-Vue%203-orange)](https://vuejs.org/)
 [![tech](https://img.shields.io/badge/tech-Electron%2028+-purple)](https://www.electronjs.org/)
@@ -22,7 +22,7 @@
 | **已支持的平台** | Windows 10 及以上 |
 | **组件数量** | 9 个 |
 | **状态** | 开发中 |
-|**版本** | V1.0.1 | 
+|**版本** | V2.0.0 | 
 
 ---
 
@@ -36,6 +36,18 @@
 
 > 这里指mind+版本为V1.8.1；之后的V2等版本是否会有本项目所优化的功能暂不考究<del>（毕竟V2的可视化面板目前也没有让用）</del>
 
+-----------------
+
+## 项目优点：
+- ``运行：项目完全由本地化运行，数据存储于本地，且数据读取快，省去了长加载时间``
+- ``组件：多行文本、折线图，可供多主题画图显示，同样有与mind+相同的单主题数据并和画图，也有可以读取多主题画图的功能,更有利于UDP多主板发送信息进行绘图或对比``
+- ``页面：编辑模式与查看模式下拥有更大的画布，清晰的中心点显示，更有利于多组件的摆放``
+- ``功能：能连接巴法云MQTT与传统的SIoT V2本地化连接，提供了三种连接选择↓↓↓``
+##### 本项目拥有本地化内网创建，可用于替代SIoT只能通过已有电脑网络创建IP的限制，无论是否有网，都可以创建内网连接（有网卡的电脑设备），并且我们还有一个与SIoT同样的数据查看网页，而且实时连接显示型比SIoT更好！
+- ``存储：本项目提供了在编辑模式和查看模式（全屏）下的快捷切换不同项目的功能，并且每个项目的连接配置均会有保存，能实现切换项目自动连接之前已配置好了的平台（内网/SIoT 或 巴法云MQTT）``
+#### 总结：这是一个船新的本地化面板，能有效满足物联网比赛中相关的网络需求，还能保持在现场比赛中更稳定的内网数据传输，不会频繁掉线！
+
+-----------------------
 
 ### 项目管理界面
 

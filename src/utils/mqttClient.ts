@@ -42,9 +42,10 @@ export class MqttClientWrapper {
       } else {
         const siot = config.siot
         url = `ws://${siot.server}:${siot.port}/ws`
+        const isInternal = siot.port === 1853
         options = {
-          username: siot.username,
-          password: siot.password,
+          username: isInternal ? '' : siot.username,
+          password: isInternal ? '' : siot.password,
           clientId: `iot-visualization-${Date.now()}`,
           clean: true,
           connectTimeout: 10000,

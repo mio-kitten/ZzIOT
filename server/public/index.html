@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IoT 数据管理 - SIOT V2</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      background: linear-gradient(135deg, #1a73e8, #1557b0);
+      color: #fff;
+      padding: 0 20px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .header h1 { font-size: 18px; font-weight: 600; }
+    .header-right { display: flex; align-items: center; gap: 16px; font-size: 13px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .status-dot.online { background: #00c853; box-shadow: 0 0 6px rgba(0,200,83,0.5); }
+    .status-dot.offline { background: #ccc; }
+    .main { display: flex; flex: 1; overflow: hidden; }
+    .sidebar {
+      flex: 0 0 25%;
+      min-width: 260px;
+      background: #fff;
+      border-right: 1px solid #e0e0e0;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #e0e0e0;
+      font-weight: 600;
+      font-size: 14px;
+      color: #555;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .sidebar-header .count { font-size: 12px; color: #999; }
+    .topic-list { flex: 1; overflow-y: auto; }
+    .topic-item {
+      padding: 10px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background 0.15s;
+      font-size: 13px;
+    }
+    .topic-item:hover { background: #f5f8ff; }
+    .topic-item.active { background: #e8f0fe; border-left: 3px solid #1a73e8; }
+    .topic-item.system-topic { background: #fef9e7; }
+    .topic-item.system-topic.active { background: #fef3cd; border-left: 3px solid #f0a030; }
+    .topic-item.system-topic .topic-name { font-weight: 600; color: #856404; }
+    .topic-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .topic-recent { font-size: 11px; color: #aaa; margin-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; }
+    .topic-msg-count { font-size: 11px; color: #999; margin-left: 8px; white-space: nowrap; }
+    .topic-delete {
+      color: #888;
+      cursor: pointer;
+      margin-left: 8px;
+      font-size: 18px;
+      font-weight: 700;
+      visibility: hidden;
+    }
+    .topic-item:hover .topic-delete { visibility: visible; }
+    .topic-delete:hover { color: #ef5350; }
+    .sidebar-footer {
+      padding: 10px 16px;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      gap: 8px;
+    }
+    .sidebar-footer button {
+      flex: 1;
+      padding: 6px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    .sidebar-footer button:hover { background: #f5f5f5; }
+    .sidebar-footer button.danger { color: #ef5350; border-color: #ef5350; }
+    .sidebar-footer button.danger:hover { background: #fff5f5; }
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      margin: 12px;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    .content-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid #e0e0e0;
+      font-weight: 600;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .content-header .topic-badge {
+      background: #e8f0fe;
+      color: #1a73e8;
+      padding: 2px 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .clear-msgs-btn {
+      margin-left: auto;
+      padding: 3px 12px;
+      border: 1px solid #ef5350;
+      border-radius: 4px;
+      background: #fff;
+      color: #ef5350;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .clear-msgs-btn:hover { background: #ef5350; color: #fff; }
+    .header-refresh {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: #999;
+    }
+    .header-refresh label { cursor: pointer; user-select: none; }
+    .header-refresh button {
+      padding: 3px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .header-refresh button:hover { background: #f5f5f5; }
+    .header-refresh input[type="checkbox"] { margin-right: 3px; }
+    .message-list { flex: 1; overflow-y: auto; padding: 12px 20px; }
+    .message-item {
+      padding: 10px 0;
+      border-bottom: 1px solid #f5f5f5;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      font-size: 13px;
+    }
+    .message-time {
+      color: #999;
+      font-size: 12px;
+      white-space: nowrap;
+      font-family: 'Consolas', 'Monaco', monospace;
+      min-width: 75px;
+    }
+    .message-payload {
+      flex: 1;
+      word-break: break-all;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+      color: #333;
+      background: #f8f9fa;
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+    .empty-state {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #bbb;
+      font-size: 14px;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .empty-state .icon { font-size: 48px; }
+    .publish-bar {
+      padding: 10px 20px;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .publish-bar input {
+      flex: 1;
+      padding: 6px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 13px;
+      outline: none;
+    }
+    .publish-bar input:focus { border-color: #1a73e8; }
+    .publish-bar button {
+      padding: 6px 16px;
+      background: #1a73e8;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+    .publish-bar button:hover { background: #1557b0; }
+    .last-sent {
+      font-size: 12px;
+      color: #999;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 140px;
+    }
+    .create-dialog {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .create-dialog-content {
+      background: #fff;
+      border-radius: 8px;
+      padding: 24px;
+      width: 360px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .create-dialog-content h3 { margin-bottom: 16px; font-size: 16px; }
+    .create-dialog-content input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      outline: none;
+      margin-bottom: 16px;
+    }
+    .create-dialog-content input:focus { border-color: #1a73e8; }
+    .create-dialog-content input.input-error { border-color: #ef5350; background: #fff5f5; }
+    .topic-name-error { color: #ef5350; font-size: 13px; margin: -8px 0 14px 0; line-height: 1.4; }
+    .create-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
+    .create-dialog-actions button {
+      padding: 6px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      border: 1px solid #ddd;
+      background: #fff;
+    }
+    .create-dialog-actions button.primary {
+      background: #1a73e8;
+      color: #fff;
+    }
+    .create-dialog-actions button.primary:hover { background: #1557b0; }
+    .create-dialog-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .msg-dialog-content {
+      background: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 28px 32px;
+      max-width: 380px;
+      width: 90%;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      text-align: center;
+    }
+    .msg-icon { font-size: 42px; margin-bottom: 10px; }
+    .msg-title { font-size: 17px; font-weight: 700; color: #333; margin-bottom: 14px; }
+    .msg-body { font-size: 14px; color: #555; line-height: 1.7; margin-bottom: 20px; }
+    .msg-actions { display: flex; justify-content: center; gap: 12px; }
+    .msg-btn {
+      padding: 7px 24px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 500; transition: background 0.2s;
+      background: #fff; color: #555;
+    }
+    .msg-btn:hover { background: #f5f5f5; }
+    .msg-btn-primary { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+    .msg-btn-primary:hover { background: #1557b0; }
+    .msg-btn-warning { background: #ffa940; color: #fff; border-color: #ffa940; }
+    .msg-btn-warning:hover { background: #e08c30; }
+    .msg-dialog-content.warning {
+      background: #fffbe6;
+      border: 2px solid #ffe58f;
+    }
+    .msg-dialog-content.warning .msg-title { color: #ad6800; }
+    .msg-dialog-content.warning .msg-body { color: #5a4000; }
+    .msg-dialog-content.warning .msg-body .highlight { color: #d4380d; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>IoT 数据管理面板</h1>
+    <div class="header-right">
+      <span><span class="status-dot" id="brokerDot"></span>Broker: <span id="brokerStatus">检测中...</span></span>
+      <span>设备: <span id="clientCount">0</span> 台</span>
+      <span>IP: <span id="serverIP">-</span></span>
+    </div>
+  </div>
+  <div class="main">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <span>主题列表</span>
+        <span class="count" id="topicCount">0 个</span>
+      </div>
+      <div class="topic-list" id="topicList"></div>
+      <div class="sidebar-footer">
+        <button onclick="showCreateDialog()">+ 新建主题</button>
+        <button class="danger" onclick="clearAllTopics()">清空全部</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="content-header" id="contentHeader">
+        <div class="header-left"><span>选择一个主题查看消息</span></div>
+        <div class="header-refresh">
+          <span id="refreshInfo">自动刷新: 2秒</span>
+          <label><input type="checkbox" id="autoRefresh" checked onchange="toggleAutoRefresh()" /> 自动刷新</label>
+          <button onclick="refreshData()">手动刷新</button>
+        </div>
+      </div>
+      <div class="message-list" id="messageList">
+        <div class="empty-state">
+          <span class="icon">📡</span>
+          <span>左侧选择一个主题，或创建新主题</span>
+        </div>
+      </div>
+      <div class="publish-bar" id="publishBar" style="display:none">
+        <input type="text" id="publishInput" placeholder="输入消息内容，按回车发送..." />
+        <span class="last-sent" id="lastSent"></span>
+        <button onclick="publishMessage()">发送</button>
+      </div>
+    </div>
+  </div>
+  <div class="create-dialog" id="createDialog" style="display:none">
+    <div class="create-dialog-content">
+      <h3>新建主题</h3>
+      <input type="text" id="newTopicName" placeholder="输入主题名称" oninput="checkTopicNameConflict()" />
+      <p id="topicNameError" class="topic-name-error" style="display:none"></p>
+      <div class="create-dialog-actions">
+        <button onclick="hideCreateDialog()">取消</button>
+        <button class="primary" id="createTopicBtn" onclick="createTopic()">创建</button>
+      </div>
+    </div>
+  </div>
+  <div class="create-dialog" id="msgDialog" style="display:none">
+    <div class="msg-dialog-content">
+      <div class="msg-icon">⚠️</div>
+      <div class="msg-title" id="msgDialogTitle">提示</div>
+      <div class="msg-body" id="msgDialogBody"></div>
+      <div class="msg-actions" id="msgDialogActions">
+        <button class="msg-btn msg-btn-primary" onclick="closeMsgDialog()">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let topics = []
+    let selectedTopic = null
+    let msgDialogResolve = null
+
+    function showAlert(title, message) {
+      const content = document.getElementById('msgDialog').querySelector('.msg-dialog-content')
+      content.className = 'msg-dialog-content'
+      document.getElementById('msgDialogTitle').textContent = title
+      document.getElementById('msgDialogBody').textContent = message
+      const actions = document.getElementById('msgDialogActions')
+      actions.innerHTML = '<button class="msg-btn msg-btn-primary" onclick="closeMsgDialog()">确认</button>'
+      document.getElementById('msgDialog').style.display = 'flex'
+    }
+
+    function showWarning(title, message) {
+      const content = document.getElementById('msgDialog').querySelector('.msg-dialog-content')
+      content.className = 'msg-dialog-content warning'
+      document.getElementById('msgDialogTitle').textContent = title
+      document.getElementById('msgDialogBody').innerHTML = message
+      const actions = document.getElementById('msgDialogActions')
+      actions.innerHTML = '<button class="msg-btn msg-btn-warning" onclick="closeMsgDialog()">我知道了</button>'
+      document.getElementById('msgDialog').style.display = 'flex'
+    }
+
+    function showConfirm(title, message) {
+      return new Promise((resolve) => {
+        const content = document.getElementById('msgDialog').querySelector('.msg-dialog-content')
+        content.className = 'msg-dialog-content'
+        document.getElementById('msgDialogTitle').textContent = title
+        document.getElementById('msgDialogBody').textContent = message
+        msgDialogResolve = resolve
+        const actions = document.getElementById('msgDialogActions')
+        actions.innerHTML = '<button class="msg-btn" onclick="closeMsgDialog(false)">取消</button><button class="msg-btn msg-btn-primary" onclick="closeMsgDialog(true)">确认</button>'
+        document.getElementById('msgDialog').style.display = 'flex'
+      })
+    }
+
+    function closeMsgDialog(result) {
+      document.getElementById('msgDialog').style.display = 'none'
+      if (msgDialogResolve) {
+        msgDialogResolve(result)
+        msgDialogResolve = null
+      }
+    }
+    let autoRefreshTimer = null
+    let autoRefreshEnabled = true
+    const REFRESH_INTERVAL = 2000
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status?_=' + Date.now())
+        if (!res.ok) throw new Error('HTTP ' + res.status)
+        const data = await res.json()
+        document.getElementById('serverIP').textContent = data.ip
+        document.getElementById('clientCount').textContent = data.broker.clients
+        const dot = document.getElementById('brokerDot')
+        const status = document.getElementById('brokerStatus')
+        if (data.broker.running) {
+          dot.className = 'status-dot online'
+          status.textContent = '运行中'
+        } else {
+          dot.className = 'status-dot offline'
+          status.textContent = '未启动'
+        }
+        document.title = `IoT 数据管理 - ${data.ip}:${data.webPort}`
+      } catch (e) {
+        console.error('获取状态失败:', e)
+        document.getElementById('serverIP').textContent = '---.---.---'
+        document.getElementById('clientCount').textContent = '0'
+        document.getElementById('brokerDot').className = 'status-dot offline'
+        document.getElementById('brokerStatus').textContent = '未启动'
+        document.title = 'IoT 数据管理 - 离线'
+      }
+    }
+
+    async function fetchTopics() {
+      try {
+        const res = await fetch('/api/topics?_=' + Date.now())
+        topics = await res.json()
+        renderTopicList()
+        document.getElementById('topicCount').textContent = topics.length
+        if (selectedTopic) {
+          const found = topics.find(t => t.topic === selectedTopic)
+          if (found) {
+            renderMessages(found)
+          } else {
+            selectedTopic = null
+            renderEmptyMessages()
+          }
+        }
+      } catch (e) {
+        console.error('获取主题失败:', e)
+      }
+    }
+
+    function renderTopicList() {
+      const el = document.getElementById('topicList')
+      if (topics.length === 0) {
+        el.innerHTML = '<div style="padding:30px;text-align:center;color:#bbb;font-size:13px;">暂无主题</div>'
+        return
+      }
+      el.innerHTML = topics.map(t => {
+        const active = selectedTopic === t.topic ? ' active' : ''
+        const lastMsg = t.messages.length > 0 ? t.messages[t.messages.length - 1].payload : ''
+        const preview = lastMsg.length > 10 ? lastMsg.slice(0, 10) + '...' : lastMsg
+        const isSystem = t.topic === '系统信息'
+        return `<div class="topic-item${active}${isSystem ? ' system-topic' : ''}" onclick="selectTopic('${escapeHtml(t.topic)}')">
+          <span class="topic-name">${escapeHtml(t.topic)}</span>
+          <span class="topic-recent">${escapeHtml(preview)}</span>
+          <span class="topic-msg-count">${t.messages.length}条</span>
+          ${isSystem ? '' : `<span class="topic-delete" onclick="event.stopPropagation();deleteTopic('${escapeHtml(t.topic)}')">×</span>`}
+        </div>`
+      }).join('')
+    }
+
+    function selectTopic(topicName) {
+      selectedTopic = topicName
+      const topic = topics.find(t => t.topic === topicName)
+      document.getElementById('publishBar').style.display = 'flex'
+      document.getElementById('lastSent').textContent = ''
+      renderHeader(topicName, topic)
+      if (topic) {
+        renderMessages(topic)
+      }
+      renderTopicList()
+    }
+
+    function renderHeader(topicName, topic) {
+      const hasMsgs = topic && topic.messages && topic.messages.length > 0
+      const header = document.getElementById('contentHeader')
+      if (topicName) {
+        const btn = hasMsgs ? `<button class="clear-msgs-btn" onclick="clearTopicMessages('${escapeHtml(topicName)}')">清空消息</button>` : ''
+        header.innerHTML = `<div class="header-left"><span>消息列表</span><span class="topic-badge">${escapeHtml(topicName)}</span>${btn}</div><div class="header-refresh"><span id="refreshInfo">自动刷新: 2秒</span><label><input type="checkbox" id="autoRefresh" checked onchange="toggleAutoRefresh()" /> 自动刷新</label><button onclick="refreshData()">手动刷新</button></div>`
+      } else {
+        header.innerHTML = `<div class="header-left"><span>选择一个主题查看消息</span></div><div class="header-refresh"><span id="refreshInfo">自动刷新: 2秒</span><label><input type="checkbox" id="autoRefresh" checked onchange="toggleAutoRefresh()" /> 自动刷新</label><button onclick="refreshData()">手动刷新</button></div>`
+      }
+    }
+
+    function renderMessages(topic) {
+      const el = document.getElementById('messageList')
+      if (!topic.messages || topic.messages.length === 0) {
+        el.innerHTML = '<div class="empty-state"><span class="icon">📭</span><span>暂无消息</span></div>'
+        renderHeader(topic.topic, topic)
+        return
+      }
+      el.innerHTML = topic.messages.slice().reverse().map(m => {
+        const time = new Date(m.timestamp).toLocaleTimeString('zh-CN', { hour12: false })
+        return `<div class="message-item">
+          <span class="message-time">${time}</span>
+          <span class="message-payload">${escapeHtml(m.payload)}</span>
+        </div>`
+      }).join('')
+      el.scrollTop = 0
+      renderHeader(topic.topic, topic)
+    }
+
+    function renderEmptyMessages() {
+      document.getElementById('publishBar').style.display = 'none'
+      renderHeader(null, null)
+      document.getElementById('messageList').innerHTML = '<div class="empty-state"><span class="icon">📡</span><span>左侧选择一个主题，或创建新主题</span></div>'
+    }
+
+    function showCreateDialog() {
+      document.getElementById('createDialog').style.display = 'flex'
+      document.getElementById('newTopicName').value = ''
+      document.getElementById('topicNameError').style.display = 'none'
+      document.getElementById('newTopicName').className = ''
+      document.getElementById('createTopicBtn').disabled = false
+      document.getElementById('newTopicName').focus()
+    }
+
+    function hideCreateDialog() {
+      document.getElementById('createDialog').style.display = 'none'
+      document.getElementById('newTopicName').value = ''
+      document.getElementById('topicNameError').style.display = 'none'
+      document.getElementById('newTopicName').className = ''
+      document.getElementById('createTopicBtn').disabled = false
+    }
+
+    function checkTopicNameConflict() {
+      const name = document.getElementById('newTopicName').value.trim()
+      const errorEl = document.getElementById('topicNameError')
+      const input = document.getElementById('newTopicName')
+      const btn = document.getElementById('createTopicBtn')
+      if (!name) {
+        errorEl.style.display = 'none'
+        input.className = ''
+        btn.disabled = false
+        return
+      }
+      // 大小写不敏感判断
+      const conflict = topics.find(t => t.topic.toLowerCase() === name.toLowerCase())
+      if (conflict) {
+        errorEl.textContent = '已存在同名主题「' + conflict.topic + '」，请换一个名称'
+        errorEl.style.display = 'block'
+        input.className = 'input-error'
+        btn.disabled = true
+      } else {
+        errorEl.style.display = 'none'
+        input.className = ''
+        btn.disabled = false
+      }
+    }
+
+    async function createTopic() {
+      const name = document.getElementById('newTopicName').value.trim()
+      if (!name) return
+      // 再次检查重名
+      if (topics.some(t => t.topic.toLowerCase() === name.toLowerCase())) {
+        return
+      }
+      hideCreateDialog()
+      await fetch(`/api/topics/${encodeURIComponent(name)}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: '主题已创建' })
+      })
+      await fetchTopics()
+      selectTopic(name)
+    }
+
+    async function deleteTopic(topicName) {
+      const ok = await showConfirm('确认删除', `确定删除主题 "${topicName}" 及其所有消息吗？`)
+      if (!ok) return
+      await fetch(`/api/topics/${encodeURIComponent(topicName)}`, { method: 'DELETE' })
+      if (selectedTopic === topicName) {
+        selectedTopic = null
+        renderEmptyMessages()
+      }
+      await fetchTopics()
+    }
+
+    async function clearAllTopics() {
+      const ok = await showConfirm('确认清空', '确定清空所有主题和消息吗？此操作不可恢复！')
+      if (!ok) return
+      await fetch('/api/topics', { method: 'DELETE' })
+      selectedTopic = null
+      renderEmptyMessages()
+      await fetchTopics()
+    }
+
+    async function clearTopicMessages(topicName) {
+      const ok = await showConfirm('确认清空', `确定清空 "${topicName}" 的所有消息吗？`)
+      if (!ok) return
+      await fetch(`/api/topics/${encodeURIComponent(topicName)}/messages`, { method: 'DELETE' })
+      await fetchTopics()
+      if (selectedTopic === topicName) {
+        selectTopic(topicName)
+      }
+    }
+
+    let lastSentPayload = ''
+
+    async function publishMessage() {
+      if (!selectedTopic) return
+      const input = document.getElementById('publishInput')
+      const payload = input.value.trim()
+      if (!payload) return
+      await fetch(`/api/topics/${encodeURIComponent(selectedTopic)}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload })
+      })
+      lastSentPayload = payload
+      document.getElementById('lastSent').textContent = '上次发送: ' + payload
+      input.value = ''
+      await fetchTopics()
+    }
+
+    async function refreshData() {
+      await fetchStatus()
+      await fetchTopics()
+    }
+
+    function toggleAutoRefresh() {
+      autoRefreshEnabled = document.getElementById('autoRefresh').checked
+      if (autoRefreshEnabled) {
+        startAutoRefresh()
+      } else {
+        stopAutoRefresh()
+      }
+    }
+
+    function startAutoRefresh() {
+      stopAutoRefresh()
+      autoRefreshTimer = setInterval(refreshData, REFRESH_INTERVAL)
+    }
+
+    function stopAutoRefresh() {
+      if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer)
+        autoRefreshTimer = null
+      }
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div')
+      div.textContent = str
+      return div.innerHTML
+    }
+
+    document.getElementById('newTopicName').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') createTopic()
+    })
+    document.getElementById('publishInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') publishMessage()
+    })
+
+    refreshData().then(() => {
+      if (topics.some(t => t.topic === '系统信息')) {
+        selectTopic('系统信息')
+      }
+      showWarning('请勿关闭系统命令窗口', '如果不小心关闭了内网的<span class="highlight">系统命令窗口</span>（显示IP的），请使用一键启动里面的<span class="highlight">只启用服务不自动打开（手动模式）</span>，并且<span class="highlight">不用刷新页面</span>，网页会自动连接。')
+    })
+    startAutoRefresh()
+  </script>
+</body>
+</html>

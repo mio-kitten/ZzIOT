@@ -168,9 +168,9 @@ const handleResize = () => {
   }
 }
 
-watch(displayData, () => {
+watch(() => props.data, () => {
   updateChart()
-}, { deep: true })
+}, { deep: true, immediate: true })
 
 onMounted(() => {
   nextTick(() => {

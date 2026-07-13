@@ -32,21 +32,16 @@ watch(() => props.data, (newData) => {
       const configuredOffValue = props.config.offSend ? String(props.config.offSend).toLowerCase().trim() : null
       
       if (configuredOnValue && configuredOffValue) {
-        // 如果配置了自定义的开/关值，只响应这两个值
         if (strValue === configuredOnValue) {
           isOn.value = true
         } else if (strValue === configuredOffValue) {
           isOn.value = false
         }
-        // 其他值忽略，保持当前状态
       } else if (configuredOnValue) {
-        // 只配置了开值，收到开值打开，其他关闭
         isOn.value = strValue === configuredOnValue
       } else if (configuredOffValue) {
-        // 只配置了关值，收到关值关闭，其他打开
         isOn.value = strValue !== configuredOffValue
       } else {
-        // 都没配置，使用默认值
         isOn.value = strValue === 'true' || strValue === '1' || strValue === 'on' || strValue === '开'
       }
     }
@@ -67,8 +62,8 @@ const toggle = () => {
 </script>
 
 <template>
-  <div class="widget-switch-container" @click="toggle">
-    <div class="switch-track" :class="{ active: isOn }">
+  <div class="widget-switch-container">
+    <div class="switch-track" :class="{ active: isOn }" @click="toggle">
       <div class="switch-thumb"></div>
     </div>
     <span class="switch-label">{{ isOn ? (config.onDisplay || '开') : (config.offDisplay || '关') }}</span>
@@ -79,18 +74,22 @@ const toggle = () => {
 .widget-switch-container {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   height: 100%;
   padding: 8px;
-  cursor: pointer;
 }
 
 .switch-track {
-  width: 52px;
-  height: 28px;
+  height: 55%;
+  min-height: 22px;
+  max-height: 40px;
+  aspect-ratio: 2.2;
   background: #ddd;
-  border-radius: 14px;
+  border-radius: 999px;
   position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
   transition: background-color 0.3s;
 }
 
@@ -102,21 +101,24 @@ const toggle = () => {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 24px;
-  height: 24px;
+  height: calc(100% - 4px);
+  aspect-ratio: 1;
   background: white;
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: transform 0.3s;
+  transform: translateX(0);
+  transition: left 0.3s, transform 0.3s;
 }
 
 .switch-track.active .switch-thumb {
-  transform: translateX(24px);
+  left: calc(100% - 2px);
+  transform: translateX(-100%);
 }
 
 .switch-label {
   font-size: 14px;
   color: #333;
   font-weight: 500;
+  flex-shrink: 0;
 }
 </style>

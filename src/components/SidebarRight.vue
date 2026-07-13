@@ -973,11 +973,13 @@ const handleUpdateUnit = (value: string) => {
           <div class="section-header">外观</div>
           
           <div class="config-item">
-            <label>组件宽度</label>
+            <label>组件高度</label>
             <input
-              :value="textConfig?.width"
-              @input="handleUpdateWidth(Number(inputValue($event)))"
+              :value="textConfig?.height"
+              @input="handleUpdateHeight(Number(inputValue($event)))"
               type="number"
+              min="150"
+              max="600"
               class="config-input"
             />
           </div>

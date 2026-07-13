@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { Project } from '../types'
 
 const props = defineProps<{
   projects: Project[]
+  triggerCreateCount: number
 }>()
 
 const emit = defineEmits<{
@@ -40,6 +41,11 @@ const openCreateModal = () => {
   showCreateModal.value = true
 }
 
+// 监听来自 Header 的触发信号
+watch(() => props.triggerCreateCount, () => {
+  openCreateModal()
+})
+
 const formatDate = (dateStr: string) => {
   const date = new Date(dateStr)
   return date.toLocaleString('zh-CN', {
@@ -73,13 +79,6 @@ const cancelDelete = () => {
 <template>
   <div class="project-manager">
     <div class="project-list-container">
-      <div class="pm-header">
-        <button class="new-project-btn" @click="openCreateModal">
-          <span class="plus-icon">+</span>
-          <span>新建项目</span>
-        </button>
-      </div>
-      
       <div class="projects-wrapper">
         <div
           v-for="project in projects"
@@ -89,6 +88,7 @@ const cancelDelete = () => {
           <div class="project-info" @click="emit('select', project.id)">
             <h3>{{ project.name }}</h3>
             <p>最后修改: {{ formatDate(project.updatedAt) }}</p>
+            <div class="project-info-hover">——点击进入编辑模式——</div>
           </div>
           <div class="project-actions">
             <button class="action-btn edit-btn" @click.stop="emit('select', project.id)">
@@ -168,33 +168,6 @@ const cancelDelete = () => {
   height: 100%;
 }
 
-.new-project-btn {
-  width: 100%;
-  padding: 24px;
-  border: 2px dashed #ccc;
-  border-radius: 10px;
-  background: #fff;
-  cursor: pointer;
-  color: #666;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s;
-  margin-bottom: 20px;
-}
-
-.new-project-btn:hover {
-  border-color: #5c9ce6;
-  color: #5c9ce6;
-  background: #f5f9fd;
-}
-
-.new-project-btn .plus-icon {
-  font-size: 28px;
-  font-weight: 300;
-}
-
 .projects-wrapper {
   display: flex;
   flex-direction: column;
@@ -220,6 +193,8 @@ const cancelDelete = () => {
   border-right: none;
   border-radius: 10px 0 0 10px;
   transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
 }
 
 .project-info:hover {
@@ -227,9 +202,33 @@ const cancelDelete = () => {
   border-color: #5c9ce6;
 }
 
+.project-info:hover h3,
+.project-info:hover p {
+  /* 保持原有可见度 */
+}
+
+.project-info-hover {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #5c9ce6;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.project-info:hover .project-info-hover {
+  opacity: 1;
+}
+
 .project-info h3 {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 800;
   margin-bottom: 4px;
   color: #333;
 }
@@ -435,17 +434,5 @@ const cancelDelete = () => {
   color: #ef5350;
   font-size: 12px;
   margin-top: 6px;
-}
-
-.pm-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.pm-header .new-project-btn {
-  flex: 1;
-  margin-bottom: 0;
 }
 </style>

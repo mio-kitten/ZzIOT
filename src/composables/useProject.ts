@@ -193,8 +193,8 @@ export function useProject() {
     const config = {
       id: `widget-${Date.now()}`,
       title: '按钮',
-      width: 260,
-      height: 100,
+      width: 120,
+      height: 120,
       x,
       y,
       buttonText: '点击',
@@ -212,8 +212,8 @@ export function useProject() {
     const config = {
       id: `widget-${Date.now()}`,
       title: '开关',
-      width: 280,
-      height: 80,
+      width: 120,
+      height: 100,
       x,
       y,
       onDisplay: '开',
@@ -253,8 +253,8 @@ export function useProject() {
     const config = {
       id: `widget-${Date.now()}`,
       title: '单行文字',
-      width: 320,
-      height: 100,
+      width: 200,
+      height: 180,
       x,
       y,
       textColor: '#333333',
@@ -295,8 +295,8 @@ export function useProject() {
     const config = {
       id: `widget-${Date.now()}`,
       title: '迷你面积图',
-      width: 230,
-      height: 160,
+      width: 420,
+      height: 280,
       x,
       y,
       topic: '',

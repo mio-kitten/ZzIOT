@@ -16,6 +16,7 @@ const props = defineProps<{
   selectedWidgetId: string | null
   widgetData: Map<string, Map<string, DataPoint[]>>
   showControls?: boolean
+  showCenterFlare?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -212,6 +213,11 @@ onUnmounted(() => {
     @dragover="handleDragOver"
     @drop="handleDrop"
   >
+    <!-- 画布正中央淡灰色十字架 -->
+    <div class="canvas-crosshair" :class="{ flare: showCenterFlare }">
+      <div class="crosshair-h"></div>
+      <div class="crosshair-v"></div>
+    </div>
     <div
       v-for="widget in widgets"
       :key="widget.id"
@@ -361,5 +367,51 @@ onUnmounted(() => {
 
 .pos-btn:active {
   background: rgba(255, 255, 255, 0.5);
+}
+
+/* 画布正中央淡灰色十字架 */
+.canvas-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.canvas-crosshair.flare {
+  animation: crosshair-flare 3.5s ease-in-out forwards;
+}
+
+@keyframes crosshair-flare {
+  0%   { opacity: 1; z-index: 9999; }
+  12%  { opacity: 0.1; z-index: 9999; }
+  20%  { opacity: 1; z-index: 9999; }
+  30%  { opacity: 0.1; z-index: 9999; }
+  38%  { opacity: 1; z-index: 9999; }
+  48%  { opacity: 0.1; z-index: 9999; }
+  49%  { opacity: 0.1; z-index: 0; }
+  62%  { opacity: 1; z-index: 0; }
+  100% { opacity: 1; z-index: 0; }
+}
+
+.crosshair-h {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 1.5px;
+  background: rgba(30, 30, 30, 0.85);
+}
+
+.crosshair-v {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 1.5px;
+  height: 60px;
+  background: rgba(30, 30, 30, 0.85);
 }
 </style>

@@ -5,13 +5,17 @@ defineProps<{
   title: string
   projectId: string
   projects: any[]
+  switchCooldown: boolean
 }>()
 
 const emit = defineEmits<{
   exitFullscreen: []
   connect: []
+  disconnect: []
   openProjectManager: []
   selectProject: [id: string]
+  scrollToCenter: []
+  openIoTService: []
 }>()
 
 const handleChangeProject = (e: Event) => {
@@ -32,10 +36,17 @@ const handleChangeProject = (e: Event) => {
       >
         项目管理
       </button>
-      <select :value="projectId" class="project-select" @change="handleChangeProject" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px;">
+      <select :value="projectId" class="project-select" :disabled="switchCooldown" @change="handleChangeProject" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px;">
         <option v-if="projects.length === 0" value="">未选择项目</option>
         <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option>
       </select>
+      <button
+        class="btn btn-secondary"
+        style="margin-left: 12px;"
+        @click="emit('openIoTService')"
+      >
+        内网服务
+      </button>
     </div>
     
     <h1 class="top-bar-title">{{ title }}</h1>
@@ -49,10 +60,18 @@ const handleChangeProject = (e: Event) => {
       <button
         class="btn"
         :class="isConnected ? 'btn-danger' : 'btn-success'"
-        @click="emit('connect')"
+        @click="isConnected ? emit('disconnect') : emit('connect')"
         style="margin-left: 12px;"
       >
         {{ isConnected ? '断开连接' : '连接平台' }}
+      </button>
+      
+      <button
+        class="btn btn-secondary"
+        style="margin-left: 12px;"
+        @click="emit('scrollToCenter')"
+      >
+        回到画布中心
       </button>
       
       <button 
@@ -113,8 +132,17 @@ const handleChangeProject = (e: Event) => {
   color: #fff;
 }
 
+.project-select {
+  transition: box-shadow 0.2s;
+}
+
 .project-select option {
   color: #333;
+}
+
+.project-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .connection-status {
@@ -127,13 +155,19 @@ const handleChangeProject = (e: Event) => {
 }
 
 .connection-status.connected {
-  background: rgba(102, 187, 106, 0.2);
-  color: #a5d6a7;
+  background: #00c853;
+  color: #ffffff;
+  font-weight: 700;
+  border: 1.5px solid #00e676;
+  box-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
 }
 
 .connection-status.disconnected {
-  background: rgba(239, 83, 80, 0.2);
-  color: #ef9a9a;
+  background: #e53935;
+  color: #ffffff;
+  font-weight: 700;
+  border: 1.5px solid #ff5252;
+  box-shadow: 0 0 10px rgba(255, 82, 82, 0.5);
 }
 
 .status-dot {
@@ -143,11 +177,13 @@ const handleChangeProject = (e: Event) => {
 }
 
 .status-dot.connected {
-  background: #66bb6a;
+  background: #ffffff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
 }
 
 .status-dot.disconnected {
-  background: #ef5350;
+  background: #ffffff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
 }
 
 .btn {
@@ -166,7 +202,7 @@ const handleChangeProject = (e: Event) => {
 
 .btn-success {
   background-color: #66bb6a;
-  color: #fff;
+  color: #ffffff;
 }
 
 .btn-danger {
@@ -177,5 +213,28 @@ const handleChangeProject = (e: Event) => {
 .btn-secondary {
   background-color: rgba(255, 255, 255, 0.25);
   color: #fff;
+}
+
+.top-bar-left .btn-secondary:hover,
+.top-bar-right .btn-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+  opacity: 1;
+}
+
+.top-bar-right .btn-success:hover {
+  background-color: #81c784;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+  opacity: 1;
+}
+
+.top-bar-right .btn-danger:hover {
+  background-color: #e57373;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+  opacity: 1;
+}
+
+.project-select:hover {
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
 }
 </style>

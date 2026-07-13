@@ -268,7 +268,7 @@ const handleResize = () => {
 
 watch(() => props.data, () => {
   updateChart()
-}, { deep: true })
+}, { deep: true, immediate: true })
 
 watch(() => props.config.themes, () => {
   nextTick(() => {

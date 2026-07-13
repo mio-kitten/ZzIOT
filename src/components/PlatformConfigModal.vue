@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import type { PlatformConfig, SiotConfig, BafayunConfig } from '@/types'
 
 const props = defineProps<{
@@ -26,6 +26,8 @@ const bafayunConfig = ref<BafayunConfig>({
   privateKey: ''
 })
 
+const isInternalNetwork = computed(() => siotConfig.value.port === 1853)
+
 watch(() => props.config, (newConfig) => {
   if (newConfig) {
     platform.value = newConfig.platform
@@ -44,6 +46,14 @@ watch(() => props.config, (newConfig) => {
     }
   }
 }, { immediate: true })
+
+watch(() => siotConfig.value.port, (newPort, oldPort) => {
+  const wasInternal = oldPort === 1853
+  const isInternal = newPort === 1853
+  if (wasInternal !== isInternal) {
+    siotConfig.value.server = '127.0.0.1'
+  }
+})
 
 const handleConfirm = () => {
   if (platform.value === 'siot') {
@@ -88,7 +98,7 @@ const handleConfirm = () => {
               value="siot"
               v-model="platform"
             />
-            SIoT V2
+            IOT/SIoT V2
           </label>
           <label>
             <input
@@ -109,18 +119,23 @@ const handleConfirm = () => {
           
           <div class="config-item">
             <label>端口</label>
+            <div class="port-warning" v-if="isInternalNetwork">
+              ⚠ 1853是本项目的内网端口，其余会默认为SIoT V2
+            </div>
             <input v-model.number="siotConfig.port" type="number" />
           </div>
           
-          <div class="config-item">
-            <label>用户名</label>
-            <input v-model="siotConfig.username" type="text" placeholder="请输入用户名" />
-          </div>
-          
-          <div class="config-item">
-            <label>密码</label>
-            <input v-model="siotConfig.password" type="password" placeholder="请输入密码" />
-          </div>
+          <template v-if="!isInternalNetwork">
+            <div class="config-item">
+              <label>用户名</label>
+              <input v-model="siotConfig.username" type="text" placeholder="请输入用户名" />
+            </div>
+            
+            <div class="config-item">
+              <label>密码</label>
+              <input v-model="siotConfig.password" type="password" placeholder="请输入密码" />
+            </div>
+          </template>
         </template>
         
         <template v-else>
@@ -204,6 +219,16 @@ const handleConfirm = () => {
 .config-item input:focus {
   outline: none;
   border-color: #5c9ce6;
+}
+
+.port-warning {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  color: #856404;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-bottom: 6px;
 }
 
 .info-panel {

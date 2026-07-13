@@ -23,6 +23,15 @@ const handleDragStart = (e: DragEvent, type: string) => {
     e.dataTransfer.setData('widgetType', type)
   }
 }
+
+const emit = defineEmits<{
+  addWidget: [type: string, x: number, y: number]
+}>()
+
+const handleDoubleClick = (type: string, e: MouseEvent) => {
+  // 传递鼠标 y 坐标（clientY），x 用 -1 作为标志，由父组件计算紧靠侧栏右边缘的位置
+  emit('addWidget', type, -1, e.clientY)
+}
 </script>
 
 <template>
@@ -43,6 +52,7 @@ const handleDragStart = (e: DragEvent, type: string) => {
         class="component-item"
         :draggable="true"
         @dragstart="handleDragStart($event, comp.id)"
+        @dblclick="handleDoubleClick(comp.id, $event)"
       >
         <span>{{ comp.icon }}</span>
         <span>{{ comp.name }}</span>
@@ -57,6 +67,7 @@ const handleDragStart = (e: DragEvent, type: string) => {
         class="component-item"
         :draggable="true"
         @dragstart="handleDragStart($event, comp.id)"
+        @dblclick="handleDoubleClick(comp.id, $event)"
       >
         <span>{{ comp.icon }}</span>
         <span>{{ comp.name }}</span>
