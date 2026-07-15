@@ -29,5 +29,8 @@ npm-debug.log*
 !node-v*.msi
 build/**/*.msi
 
+# 数据文件（含用户消息记录，不追踪）
+server/data/
+
 # 启动脚本（可选，如果你不想追踪）
 # *.bat
