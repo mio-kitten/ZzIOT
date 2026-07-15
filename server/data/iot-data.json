@@ -3,112 +3,108 @@
     "topic": "系统信息",
     "messages": [
       {
-        "timestamp": 1783868841998,
+        "timestamp": 1784044671485,
         "payload": "MQTT Broker 已启动 (WebSocket:1853, TCP:1883)"
       },
       {
-        "timestamp": 1783868845665,
-        "payload": "设备已连接 (ID: iot-visualization-1783868845484)"
-      },
-      {
-        "timestamp": 1783868855669,
-        "payload": "设备已连接 (ID: mqttjs_c79cbc78)"
-      },
-      {
-        "timestamp": 1783868881086,
-        "payload": "设备已断开 (ID: iot-visualization-1783868845484)"
-      },
-      {
-        "timestamp": 1783868881089,
-        "payload": "设备已连接 (ID: iot-visualization-1783868881072)"
-      },
-      {
-        "timestamp": 1783868883071,
-        "payload": "设备已断开 (ID: iot-visualization-1783868881072)"
-      },
-      {
-        "timestamp": 1783868883077,
-        "payload": "设备已连接 (ID: iot-visualization-1783868883056)"
-      },
-      {
-        "timestamp": 1783868961140,
-        "payload": "设备已断开 (ID: mqttjs_c79cbc78)"
-      },
-      {
-        "timestamp": 1783868961143,
-        "payload": "设备已连接 (ID: mqttjs_ae8e3bfc)"
-      },
-      {
-        "timestamp": 1783868992765,
-        "payload": "设备已断开 (ID: iot-visualization-1783868883056)"
-      },
-      {
-        "timestamp": 1783868994219,
-        "payload": "设备已连接 (ID: iot-visualization-1783868994207)"
-      },
-      {
-        "timestamp": 1783869015203,
-        "payload": "设备已断开 (ID: iot-visualization-1783868994207)"
-      },
-      {
-        "timestamp": 1783869015208,
-        "payload": "设备已连接 (ID: iot-visualization-1783869015192)"
-      },
-      {
-        "timestamp": 1783869017158,
-        "payload": "设备已断开 (ID: iot-visualization-1783869015192)"
-      },
-      {
-        "timestamp": 1783869017165,
-        "payload": "设备已连接 (ID: iot-visualization-1783869017136)"
-      },
-      {
-        "timestamp": 1783869438934,
-        "payload": "设备已断开 (ID: iot-visualization-1783869017136)"
-      },
-      {
-        "timestamp": 1783870813277,
+        "timestamp": 1784048062026,
         "payload": "MQTT Broker 已启动 (WebSocket:1853, TCP:1883)"
       },
       {
-        "timestamp": 1783870845650,
-        "payload": "设备已连接 (ID: mqttjs_c7dec87e)"
-      },
-      {
-        "timestamp": 1783871381777,
-        "payload": "MQTT Broker 已启动 (WebSocket:1853, TCP:1883)"
-      },
-      {
-        "timestamp": 1783914046268,
-        "payload": "MQTT Broker 已启动 (WebSocket:1853, TCP:1883)"
-      },
-      {
-        "timestamp": 1783914264532,
-        "payload": "MQTT Broker 已启动 (WebSocket:1853, TCP:1883)"
-      },
-      {
-        "timestamp": 1783914956758,
-        "payload": "MQTT Broker 已启动 (WebSocket:1853, TCP:1883)"
-      },
-      {
-        "timestamp": 1783915035088,
+        "timestamp": 1784048065794,
         "payload": "MQTT Broker 已停止"
       },
       {
-        "timestamp": 1783915205013,
+        "timestamp": 1784086841742,
         "payload": "MQTT Broker 已启动 (WebSocket:1853, TCP:1883)"
       },
       {
-        "timestamp": 1783915207443,
-        "payload": "MQTT Broker 已停止"
-      },
-      {
-        "timestamp": 1783918086864,
+        "timestamp": 1784099355104,
         "payload": "MQTT Broker 已启动 (WebSocket:1853, TCP:1883)"
       },
       {
-        "timestamp": 1783918100475,
+        "timestamp": 1784099377749,
         "payload": "MQTT Broker 已停止"
+      },
+      {
+        "timestamp": 1784099378279,
+        "payload": "MQTT Broker 已启动 (WebSocket:1853, TCP:1883)"
+      },
+      {
+        "timestamp": 1784101555814,
+        "payload": "MQTT Broker 已启动 (WebSocket:1853, TCP:1883)"
+      },
+      {
+        "timestamp": 1784102644328,
+        "payload": "MQTT Broker 已启动 (WebSocket:1853, TCP:1883)"
+      },
+      {
+        "timestamp": 1784102646633,
+        "payload": "设备已连接 (ID: 8675289906264119)"
+      },
+      {
+        "timestamp": 1784102759534,
+        "payload": "设备已断开 (ID: 8675289906264119)"
+      },
+      {
+        "timestamp": 1784108745397,
+        "payload": "MQTT Broker 已启动 (WebSocket:1853, TCP:1883)"
+      },
+      {
+        "timestamp": 1784108763912,
+        "payload": "设备已连接 (ID: iot-visualization-1784108763893)"
+      },
+      {
+        "timestamp": 1784108771565,
+        "payload": "设备已断开 (ID: iot-visualization-1784108763893)"
+      },
+      {
+        "timestamp": 1784111352925,
+        "payload": "MQTT Broker 已启动 (WebSocket:1853, TCP:1883)"
+      },
+      {
+        "timestamp": 1784111354948,
+        "payload": "设备已连接 (ID: iot-visualization-1784111354904)"
+      },
+      {
+        "timestamp": 1784111358930,
+        "payload": "设备已断开 (ID: iot-visualization-1784111354904)"
+      },
+      {
+        "timestamp": 1784111364528,
+        "payload": "设备已连接 (ID: iot-visualization-1784111364521)"
+      },
+      {
+        "timestamp": 1784111401394,
+        "payload": "设备已连接 (ID: iot-visualization-1784111401383)"
+      },
+      {
+        "timestamp": 1784111401398,
+        "payload": "设备已断开 (ID: iot-visualization-1784111364521)"
+      },
+      {
+        "timestamp": 1784111407327,
+        "payload": "设备已断开 (ID: iot-visualization-1784111401383)"
+      },
+      {
+        "timestamp": 1784111407330,
+        "payload": "设备已连接 (ID: iot-visualization-1784111407312)"
+      },
+      {
+        "timestamp": 1784111418044,
+        "payload": "设备已断开 (ID: iot-visualization-1784111407312)"
+      },
+      {
+        "timestamp": 1784111427643,
+        "payload": "设备已连接 (ID: iot-visualization-1784111427631)"
+      },
+      {
+        "timestamp": 1784111551113,
+        "payload": "设备已断开 (ID: iot-visualization-1784111427631)"
+      },
+      {
+        "timestamp": 1784114707544,
+        "payload": "MQTT Broker 已启动 (WebSocket:1853, TCP:1883)"
       }
     ]
   },
@@ -116,676 +112,436 @@
     "topic": "222",
     "messages": [
       {
-        "timestamp": 1783866054854,
-        "payload": "主题已创建"
+        "timestamp": 1783925293876,
+        "payload": "11"
       },
       {
-        "timestamp": 1783866648769,
-        "payload": "11/8/6"
+        "timestamp": 1783925295127,
+        "payload": "12"
       },
       {
-        "timestamp": 1783866650816,
-        "payload": "12/11/8"
+        "timestamp": 1783925296379,
+        "payload": "13"
       },
       {
-        "timestamp": 1783866652889,
-        "payload": "13/10/8"
+        "timestamp": 1783925297693,
+        "payload": "14"
       },
       {
-        "timestamp": 1783866655025,
-        "payload": "14/11/8"
+        "timestamp": 1783925298923,
+        "payload": "15"
       },
       {
-        "timestamp": 1783866657336,
-        "payload": "15/14/13"
+        "timestamp": 1783925300137,
+        "payload": "16"
       },
       {
-        "timestamp": 1783866659491,
-        "payload": "16/15/13"
+        "timestamp": 1783925301388,
+        "payload": "17"
       },
       {
-        "timestamp": 1783866661534,
-        "payload": "17/14/16"
+        "timestamp": 1783925302640,
+        "payload": "18"
       },
       {
-        "timestamp": 1783866663647,
-        "payload": "18/15/17"
+        "timestamp": 1783925303892,
+        "payload": "19"
       },
       {
-        "timestamp": 1783866665693,
-        "payload": "19/16/12"
+        "timestamp": 1783925305142,
+        "payload": "20"
       },
       {
-        "timestamp": 1783866667738,
-        "payload": "20/19/14"
+        "timestamp": 1783925306394,
+        "payload": "21"
       },
       {
-        "timestamp": 1783866669784,
-        "payload": "21/20/18"
+        "timestamp": 1783925307649,
+        "payload": "22"
       },
       {
-        "timestamp": 1783866671829,
-        "payload": "22/21/15"
+        "timestamp": 1783925308898,
+        "payload": "23"
       },
       {
-        "timestamp": 1783866673876,
-        "payload": "23/21/21"
+        "timestamp": 1783925310154,
+        "payload": "24"
       },
       {
-        "timestamp": 1783866675923,
-        "payload": "24/21/20"
+        "timestamp": 1783925311411,
+        "payload": "25"
       },
       {
-        "timestamp": 1783866678144,
-        "payload": "25/23/21"
+        "timestamp": 1783925312656,
+        "payload": "26"
       },
       {
-        "timestamp": 1783866680211,
-        "payload": "26/24/24"
+        "timestamp": 1783925313905,
+        "payload": "27"
       },
       {
-        "timestamp": 1783866682257,
-        "payload": "27/25/24"
+        "timestamp": 1783925315157,
+        "payload": "28"
       },
       {
-        "timestamp": 1783866684304,
-        "payload": "28/26/19"
+        "timestamp": 1783925316428,
+        "payload": "29"
       },
       {
-        "timestamp": 1783866686350,
-        "payload": "29/27/24"
+        "timestamp": 1783925317660,
+        "payload": "30"
       },
       {
-        "timestamp": 1783866688395,
-        "payload": "30/27/25"
+        "timestamp": 1783925318912,
+        "payload": "31"
       },
       {
-        "timestamp": 1783866690442,
-        "payload": "31/29/21"
+        "timestamp": 1783925320164,
+        "payload": "32"
       },
       {
-        "timestamp": 1783866692487,
-        "payload": "32/29/24"
+        "timestamp": 1783925321416,
+        "payload": "33"
       },
       {
-        "timestamp": 1783866694535,
-        "payload": "33/31/23"
+        "timestamp": 1783925322674,
+        "payload": "34"
       },
       {
-        "timestamp": 1783866696612,
-        "payload": "34/33/28"
+        "timestamp": 1783925323920,
+        "payload": "35"
       },
       {
-        "timestamp": 1783866698659,
-        "payload": "35/33/30"
+        "timestamp": 1783925325177,
+        "payload": "36"
       },
       {
-        "timestamp": 1783866700704,
-        "payload": "36/35/33"
+        "timestamp": 1783925326427,
+        "payload": "37"
       },
       {
-        "timestamp": 1783866702750,
-        "payload": "37/36/32"
+        "timestamp": 1783925327682,
+        "payload": "38"
       },
       {
-        "timestamp": 1783866704797,
-        "payload": "38/35/34"
+        "timestamp": 1783925328927,
+        "payload": "39"
       },
       {
-        "timestamp": 1783866706843,
-        "payload": "39/37/35"
+        "timestamp": 1783925330188,
+        "payload": "40"
       },
       {
-        "timestamp": 1783866708888,
-        "payload": "40/37/37"
+        "timestamp": 1783925331433,
+        "payload": "41"
       },
       {
-        "timestamp": 1783866710936,
-        "payload": "41/40/38"
+        "timestamp": 1783925332684,
+        "payload": "42"
       },
       {
-        "timestamp": 1783866712981,
-        "payload": "42/41/35"
+        "timestamp": 1783925333938,
+        "payload": "43"
       },
       {
-        "timestamp": 1783866715027,
-        "payload": "43/40/42"
+        "timestamp": 1783925335187,
+        "payload": "44"
       },
       {
-        "timestamp": 1783866717073,
-        "payload": "44/42/37"
+        "timestamp": 1783925336445,
+        "payload": "45"
       },
       {
-        "timestamp": 1783866719119,
-        "payload": "45/43/40"
+        "timestamp": 1783925337693,
+        "payload": "46"
       },
       {
-        "timestamp": 1783866721166,
-        "payload": "46/44/37"
+        "timestamp": 1783925338957,
+        "payload": "47"
       },
       {
-        "timestamp": 1783866723211,
-        "payload": "47/46/44"
+        "timestamp": 1783925340196,
+        "payload": "48"
       },
       {
-        "timestamp": 1783866754730,
-        "payload": "11/9/6"
+        "timestamp": 1783925341446,
+        "payload": "49"
       },
       {
-        "timestamp": 1783866756771,
-        "payload": "12/10/8"
+        "timestamp": 1783925342700,
+        "payload": "50"
       },
       {
-        "timestamp": 1783866758819,
-        "payload": "13/12/3"
+        "timestamp": 1783925343952,
+        "payload": "51"
       },
       {
-        "timestamp": 1783866760930,
-        "payload": "14/13/5"
+        "timestamp": 1783925345206,
+        "payload": "52"
       },
       {
-        "timestamp": 1783866762975,
-        "payload": "15/14/13"
+        "timestamp": 1783925346455,
+        "payload": "53"
       },
       {
-        "timestamp": 1783866765022,
-        "payload": "16/14/6"
+        "timestamp": 1783925347707,
+        "payload": "54"
       },
       {
-        "timestamp": 1783866767067,
-        "payload": "17/15/15"
+        "timestamp": 1783925348959,
+        "payload": "55"
       },
       {
-        "timestamp": 1783866769113,
-        "payload": "18/15/16"
+        "timestamp": 1783925350235,
+        "payload": "56"
       },
       {
-        "timestamp": 1783866771159,
-        "payload": "19/17/18"
+        "timestamp": 1783925351461,
+        "payload": "57"
       },
       {
-        "timestamp": 1783866773205,
-        "payload": "20/17/19"
+        "timestamp": 1783925352714,
+        "payload": "58"
       },
       {
-        "timestamp": 1783866775252,
-        "payload": "21/19/15"
+        "timestamp": 1783925353968,
+        "payload": "59"
       },
       {
-        "timestamp": 1783866777275,
-        "payload": "22/20/17"
+        "timestamp": 1783925355245,
+        "payload": "60"
       },
       {
-        "timestamp": 1783866779345,
-        "payload": "23/21/17"
+        "timestamp": 1783925356469,
+        "payload": "61"
       },
       {
-        "timestamp": 1783866781388,
-        "payload": "24/23/18"
+        "timestamp": 1784102647291,
+        "payload": "11"
       },
       {
-        "timestamp": 1783866783436,
-        "payload": "25/24/18"
+        "timestamp": 1784102648525,
+        "payload": "12"
       },
       {
-        "timestamp": 1783866785482,
-        "payload": "26/24/25"
+        "timestamp": 1784102649780,
+        "payload": "13"
       },
       {
-        "timestamp": 1783866787527,
-        "payload": "27/24/23"
+        "timestamp": 1784102651031,
+        "payload": "14"
       },
       {
-        "timestamp": 1783866789609,
-        "payload": "28/27/27"
+        "timestamp": 1784102652280,
+        "payload": "15"
       },
       {
-        "timestamp": 1783866791657,
-        "payload": "29/26/24"
+        "timestamp": 1784102653532,
+        "payload": "16"
       },
       {
-        "timestamp": 1783866793803,
-        "payload": "30/28/28"
+        "timestamp": 1784102654787,
+        "payload": "17"
       },
       {
-        "timestamp": 1783866795844,
-        "payload": "31/30/29"
+        "timestamp": 1784102656044,
+        "payload": "18"
       },
       {
-        "timestamp": 1783866797897,
-        "payload": "32/30/22"
+        "timestamp": 1784102657288,
+        "payload": "19"
       },
       {
-        "timestamp": 1783868856783,
-        "payload": "11/9/8"
+        "timestamp": 1784102658540,
+        "payload": "20"
       },
       {
-        "timestamp": 1783868858822,
-        "payload": "12/11/4"
+        "timestamp": 1784102659802,
+        "payload": "21"
       },
       {
-        "timestamp": 1783868860870,
-        "payload": "13/12/4"
+        "timestamp": 1784102661044,
+        "payload": "22"
       },
       {
-        "timestamp": 1783868862916,
-        "payload": "14/13/4"
+        "timestamp": 1784102662296,
+        "payload": "23"
       },
       {
-        "timestamp": 1783868864961,
-        "payload": "15/13/6"
+        "timestamp": 1784102663548,
+        "payload": "24"
       },
       {
-        "timestamp": 1783868866987,
-        "payload": "16/14/13"
+        "timestamp": 1784102664800,
+        "payload": "25"
       },
       {
-        "timestamp": 1783868869054,
-        "payload": "17/14/8"
+        "timestamp": 1784102666055,
+        "payload": "26"
       },
       {
-        "timestamp": 1783868871097,
-        "payload": "18/16/17"
+        "timestamp": 1784102667304,
+        "payload": "27"
       },
       {
-        "timestamp": 1783868873144,
-        "payload": "19/18/12"
+        "timestamp": 1784102668559,
+        "payload": "28"
       },
       {
-        "timestamp": 1783868875165,
-        "payload": "20/17/13"
+        "timestamp": 1784102669809,
+        "payload": "29"
       },
       {
-        "timestamp": 1783868877236,
-        "payload": "21/19/17"
+        "timestamp": 1784102671068,
+        "payload": "30"
       },
       {
-        "timestamp": 1783868879282,
-        "payload": "22/19/16"
+        "timestamp": 1784102672315,
+        "payload": "31"
       },
       {
-        "timestamp": 1783868881333,
-        "payload": "23/22/20"
+        "timestamp": 1784102673564,
+        "payload": "32"
       },
       {
-        "timestamp": 1783868883373,
-        "payload": "24/22/20"
+        "timestamp": 1784102674821,
+        "payload": "33"
       },
       {
-        "timestamp": 1783868885421,
-        "payload": "25/23/19"
+        "timestamp": 1784102676069,
+        "payload": "34"
       },
       {
-        "timestamp": 1783868887466,
-        "payload": "26/25/19"
+        "timestamp": 1784102677321,
+        "payload": "35"
       },
       {
-        "timestamp": 1783868889511,
-        "payload": "27/25/20"
+        "timestamp": 1784102678572,
+        "payload": "36"
       },
       {
-        "timestamp": 1783868891558,
-        "payload": "28/25/21"
+        "timestamp": 1784102679824,
+        "payload": "37"
       },
       {
-        "timestamp": 1783868893604,
-        "payload": "29/26/27"
+        "timestamp": 1784102681077,
+        "payload": "38"
       },
       {
-        "timestamp": 1783868895650,
-        "payload": "30/28/23"
+        "timestamp": 1784102682330,
+        "payload": "39"
       },
       {
-        "timestamp": 1783868897695,
-        "payload": "31/28/26"
+        "timestamp": 1784102683580,
+        "payload": "40"
       },
       {
-        "timestamp": 1783868898885,
-        "payload": "bbb"
+        "timestamp": 1784102684835,
+        "payload": "41"
       },
       {
-        "timestamp": 1783868898889,
-        "payload": "bbb"
+        "timestamp": 1784102686086,
+        "payload": "42"
       },
       {
-        "timestamp": 1783868899742,
-        "payload": "32/31/29"
+        "timestamp": 1784102687336,
+        "payload": "43"
       },
       {
-        "timestamp": 1783868901787,
-        "payload": "33/30/27"
+        "timestamp": 1784102688588,
+        "payload": "44"
       },
       {
-        "timestamp": 1783868904043,
-        "payload": "34/33/33"
+        "timestamp": 1784102689839,
+        "payload": "45"
       },
       {
-        "timestamp": 1783868906112,
-        "payload": "35/34/25"
+        "timestamp": 1784102691092,
+        "payload": "46"
       },
       {
-        "timestamp": 1783868908160,
-        "payload": "36/35/35"
+        "timestamp": 1784102692345,
+        "payload": "47"
       },
       {
-        "timestamp": 1783868910202,
-        "payload": "37/34/31"
+        "timestamp": 1784102693597,
+        "payload": "48"
       },
       {
-        "timestamp": 1783868912248,
-        "payload": "38/36/33"
+        "timestamp": 1784102694851,
+        "payload": "49"
       },
       {
-        "timestamp": 1783868913085,
-        "payload": "bbb"
+        "timestamp": 1784102696104,
+        "payload": "50"
       },
       {
-        "timestamp": 1783868913089,
-        "payload": "bbb"
+        "timestamp": 1784102697353,
+        "payload": "51"
       },
       {
-        "timestamp": 1783868914295,
-        "payload": "39/38/38"
+        "timestamp": 1784102698612,
+        "payload": "52"
       },
       {
-        "timestamp": 1783868916344,
-        "payload": "40/39/38"
+        "timestamp": 1784102699885,
+        "payload": "53"
       },
       {
-        "timestamp": 1783868918387,
-        "payload": "41/40/32"
+        "timestamp": 1784102701114,
+        "payload": "54"
       },
       {
-        "timestamp": 1783868920433,
-        "payload": "42/41/37"
+        "timestamp": 1784102702365,
+        "payload": "55"
       },
       {
-        "timestamp": 1783868922479,
-        "payload": "43/40/39"
+        "timestamp": 1784102703611,
+        "payload": "56"
       },
       {
-        "timestamp": 1783868924524,
-        "payload": "44/42/34"
+        "timestamp": 1784102704863,
+        "payload": "57"
       },
       {
-        "timestamp": 1783868924611,
-        "payload": "bbb"
+        "timestamp": 1784102706114,
+        "payload": "58"
       },
       {
-        "timestamp": 1783868924614,
-        "payload": "bbb"
+        "timestamp": 1784102707367,
+        "payload": "59"
       },
       {
-        "timestamp": 1783868926573,
-        "payload": "45/44/39"
+        "timestamp": 1784102708619,
+        "payload": "60"
       },
       {
-        "timestamp": 1783868928617,
-        "payload": "46/43/43"
+        "timestamp": 1784102709876,
+        "payload": "61"
       },
       {
-        "timestamp": 1783868929938,
-        "payload": "aaa"
+        "timestamp": 1784102711123,
+        "payload": "62"
       },
       {
-        "timestamp": 1783868929941,
-        "payload": "aaa"
+        "timestamp": 1784102712376,
+        "payload": "63"
       },
       {
-        "timestamp": 1783868930668,
-        "payload": "47/45/46"
+        "timestamp": 1784102713631,
+        "payload": "64"
       },
       {
-        "timestamp": 1783868932775,
-        "payload": "48/45/45"
+        "timestamp": 1784102714880,
+        "payload": "65"
       },
       {
-        "timestamp": 1783868934954,
-        "payload": "49/48/42"
+        "timestamp": 1784102716132,
+        "payload": "66"
       },
       {
-        "timestamp": 1783868937000,
-        "payload": "50/47/49"
-      },
-      {
-        "timestamp": 1783868939046,
-        "payload": "51/49/44"
-      },
-      {
-        "timestamp": 1783868941098,
-        "payload": "52/50/44"
-      },
-      {
-        "timestamp": 1783868943170,
-        "payload": "53/52/52"
-      },
-      {
-        "timestamp": 1783868945216,
-        "payload": "54/52/49"
-      },
-      {
-        "timestamp": 1783868947262,
-        "payload": "55/54/46"
-      },
-      {
-        "timestamp": 1783868949315,
-        "payload": "56/55/48"
-      },
-      {
-        "timestamp": 1783868951449,
-        "payload": "57/54/51"
-      },
-      {
-        "timestamp": 1783868953533,
-        "payload": "58/57/48"
-      },
-      {
-        "timestamp": 1783868955553,
-        "payload": "59/56/49"
-      },
-      {
-        "timestamp": 1783868957629,
-        "payload": "60/58/51"
-      },
-      {
-        "timestamp": 1783868959641,
-        "payload": "61/59/58"
-      },
-      {
-        "timestamp": 1783868962215,
-        "payload": "11/10/8"
-      },
-      {
-        "timestamp": 1783868964257,
-        "payload": "12/11/10"
-      },
-      {
-        "timestamp": 1783868966309,
-        "payload": "13/11/10"
-      },
-      {
-        "timestamp": 1783868968392,
-        "payload": "14/11/8"
-      },
-      {
-        "timestamp": 1783868970496,
-        "payload": "15/14/13"
-      },
-      {
-        "timestamp": 1783868972540,
-        "payload": "16/15/12"
-      },
-      {
-        "timestamp": 1783868974589,
-        "payload": "17/14/8"
-      },
-      {
-        "timestamp": 1783868976633,
-        "payload": "18/16/12"
-      },
-      {
-        "timestamp": 1783868978679,
-        "payload": "19/18/13"
-      },
-      {
-        "timestamp": 1783868980723,
-        "payload": "20/17/10"
-      },
-      {
-        "timestamp": 1783868982769,
-        "payload": "21/20/18"
-      },
-      {
-        "timestamp": 1783868984815,
-        "payload": "22/20/14"
-      },
-      {
-        "timestamp": 1783868986862,
-        "payload": "23/21/13"
-      },
-      {
-        "timestamp": 1783868988907,
-        "payload": "24/22/20"
-      },
-      {
-        "timestamp": 1783868990954,
-        "payload": "25/24/16"
-      },
-      {
-        "timestamp": 1783868993000,
-        "payload": "26/25/24"
-      },
-      {
-        "timestamp": 1783868995047,
-        "payload": "27/24/22"
-      },
-      {
-        "timestamp": 1783868997091,
-        "payload": "28/26/24"
-      },
-      {
-        "timestamp": 1783868999137,
-        "payload": "29/28/21"
-      },
-      {
-        "timestamp": 1783869001184,
-        "payload": "30/27/23"
-      },
-      {
-        "timestamp": 1783869003229,
-        "payload": "31/29/21"
-      },
-      {
-        "timestamp": 1783869005276,
-        "payload": "32/31/29"
-      },
-      {
-        "timestamp": 1783869007342,
-        "payload": "33/32/31"
-      },
-      {
-        "timestamp": 1783869009441,
-        "payload": "34/32/24"
-      },
-      {
-        "timestamp": 1783869011561,
-        "payload": "35/32/34"
-      },
-      {
-        "timestamp": 1783869013691,
-        "payload": "36/34/31"
-      },
-      {
-        "timestamp": 1783869015737,
-        "payload": "37/35/34"
-      },
-      {
-        "timestamp": 1783869017787,
-        "payload": "38/36/30"
-      },
-      {
-        "timestamp": 1783869019830,
-        "payload": "39/36/38"
-      },
-      {
-        "timestamp": 1783869021876,
-        "payload": "40/38/35"
-      },
-      {
-        "timestamp": 1783869023920,
-        "payload": "41/39/36"
-      },
-      {
-        "timestamp": 1783869025966,
-        "payload": "42/39/35"
-      },
-      {
-        "timestamp": 1783869028014,
-        "payload": "43/42/41"
-      },
-      {
-        "timestamp": 1783869030059,
-        "payload": "44/43/35"
-      },
-      {
-        "timestamp": 1783869032108,
-        "payload": "45/42/44"
-      },
-      {
-        "timestamp": 1783869034191,
-        "payload": "46/45/36"
-      },
-      {
-        "timestamp": 1783869036262,
-        "payload": "47/44/41"
-      },
-      {
-        "timestamp": 1783869038316,
-        "payload": "48/46/40"
-      },
-      {
-        "timestamp": 1783869040372,
-        "payload": "49/47/43"
-      },
-      {
-        "timestamp": 1783869042467,
-        "payload": "50/47/42"
-      },
-      {
-        "timestamp": 1783869044513,
-        "payload": "51/50/45"
-      },
-      {
-        "timestamp": 1783869046558,
-        "payload": "52/49/43"
-      },
-      {
-        "timestamp": 1783869048605,
-        "payload": "53/51/44"
-      },
-      {
-        "timestamp": 1783869050651,
-        "payload": "54/52/49"
-      },
-      {
-        "timestamp": 1783869052696,
-        "payload": "55/54/50"
-      },
-      {
-        "timestamp": 1783869054744,
-        "payload": "56/55/53"
-      },
-      {
-        "timestamp": 1783869056789,
-        "payload": "57/55/47"
-      },
-      {
-        "timestamp": 1783869058835,
-        "payload": "58/55/50"
-      },
-      {
-        "timestamp": 1783870846779,
-        "payload": "11/10/10"
+        "timestamp": 1784102717383,
+        "payload": "67"
       }
     ]
   },

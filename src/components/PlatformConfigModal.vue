@@ -50,7 +50,8 @@ watch(() => props.config, (newConfig) => {
 watch(() => siotConfig.value.port, (newPort, oldPort) => {
   const wasInternal = oldPort === 1853
   const isInternal = newPort === 1853
-  if (wasInternal !== isInternal) {
+  // 只有离开内网模式时才重置地址，进入内网模式时保留现有IP
+  if (wasInternal && !isInternal) {
     siotConfig.value.server = '127.0.0.1'
   }
 })

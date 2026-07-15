@@ -6,8 +6,8 @@
 
 | 文件 | 字段/位置 | 说明 |
 |------|----------|------|
-| `src/version.ts` | `APP_VERSION` | 网页版水印显示的版本号（格式：`V1.0.1`） |
-| `package.json` | `version` | CMD 终端显示的版本号（格式：`1.0.1`） |
+| `src/version.ts` | `APP_VERSION` | 网页版水印显示的版本号（格式：`V2.0.0`） |
+| `package.json` | `version` | CMD 终端显示的版本号（格式：`2.0.0`） |
 | `README.md` | 徽章链接、说明表格、下载链接 | 项目主页显示的版本号 |
 
 修改步骤：

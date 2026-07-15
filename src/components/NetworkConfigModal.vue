@@ -6,6 +6,7 @@ const emit = defineEmits<{
 }>()
 
 const ip = ref('127.0.0.1')
+const esp32IP = ref('127.0.0.1')
 const webPort = ref(8080)
 const brokerRunning = ref(false)
 const wsPort = ref(1853)
@@ -14,6 +15,9 @@ const clientCount = ref(0)
 const accessUrl = ref('')
 const loading = ref(false)
 const errorMsg = ref('')
+const isOffline = ref(false)
+const hotspotStarted = ref(false)
+const apInfo = ref<{ ssid: string; password: string } | null>(null)
 
 const API_BASE = 'http://localhost:8080'
 
@@ -22,18 +26,25 @@ const fetchStatus = async () => {
     const res = await fetch(`${API_BASE}/api/status?_=${Date.now()}`, { cache: 'no-store' })
     const data = await res.json()
     ip.value = data.ip
+    esp32IP.value = data.esp32IP || data.ip
     webPort.value = data.webPort
     brokerRunning.value = data.broker.running
     wsPort.value = data.broker.wsPort
     tcpPort.value = data.broker.tcpPort
     clientCount.value = data.broker.clients
     accessUrl.value = data.accessUrl
+    isOffline.value = data.isOffline || false
+    hotspotStarted.value = data.hotspotStarted || false
+    apInfo.value = data.apInfo || null
     errorMsg.value = ''
   } catch {
     ip.value = '---.---.---'
     accessUrl.value = ''
     brokerRunning.value = false
     clientCount.value = 0
+    isOffline.value = false
+    hotspotStarted.value = false
+    apInfo.value = null
     errorMsg.value = '无法连接到内网服务，请确保后端服务器已启动'
   }
 }
@@ -108,11 +119,11 @@ onUnmounted(() => {
             <span>{{ brokerRunning ? '运行中' : '未启动' }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">TCP 端口</span>
+            <span class="info-label">TCP端口（仿SIoT，是主板连接默认值）</span>
             <span class="info-value">{{ tcpPort }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">WebSocket 端口</span>
+            <span class="info-label">本面板连接内网端口</span>
             <span class="info-value">{{ wsPort }}</span>
           </div>
           <div class="info-yellow-tip">
@@ -121,7 +132,7 @@ onUnmounted(() => {
         </div>
 
         <div class="status-section">
-          <div class="status-label">内网地址</div>
+          <div class="status-label">电脑连接地址（不是主板的）</div>
           <div class="info-row ip-row">
             <span class="info-label">IP</span>
             <span class="info-value ip-value">{{ ip }}</span>
@@ -138,6 +149,30 @@ onUnmounted(() => {
           </div>
         </div>
 
+        <div class="status-section" v-if="((isOffline || hotspotStarted) && apInfo)">
+          <div class="status-label">{{ hotspotStarted ? 'WiFi热点AP' : '模拟AP信息（无网模式）' }}</div>
+          <div class="ap-info-banner">
+            <div class="ap-warning">
+              {{ hotspotStarted ? '✓ 真实WiFi热点已创建（AP模式）' : '⚠ 当前电脑无网络连接，已启用模拟AP模式' }}
+            </div>
+            <div class="ap-info-row">
+              <span class="ap-info-label">WiFi名称</span>
+              <span class="ap-info-value ap-ssid">{{ apInfo.ssid }}</span>
+            </div>
+            <div class="ap-info-row">
+              <span class="ap-info-label">WiFi密码</span>
+              <span class="ap-info-value ap-password">{{ apInfo.password }}</span>
+            </div>
+            <div class="ap-info-note">
+              本机请通过 <strong>http://localhost:{{ webPort }}</strong> 访问数据管理页面。<br>
+              设备连接 ↓ ↓ ↓
+              <div v-if="!hotspotStarted && isOffline" class="ap-fail-tip">
+                <br><strong>提示：WiFi热点创建失败，请检查是否以管理员身份运行此程序。</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="status-section">
           <div class="status-label">连接设备</div>
           <div class="info-row">
@@ -147,13 +182,13 @@ onUnmounted(() => {
         </div>
 
         <div class="status-section">
-          <div class="status-label">设备连接信息</div>
+          <div class="status-label">设备连接信息（ESP32 / Mind+）</div>
           <div class="info-row">
             <span class="info-label">服务器地址</span>
-            <span class="info-value ip-value">{{ ip }}</span>
+            <span class="info-value ip-value">{{ esp32IP }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">TCP 端口</span>
+            <span class="info-label">TCP端口（仿SIoT，是主板连接默认值）</span>
             <span class="info-value ip-value">{{ tcpPort }}</span>
           </div>
           <div class="info-row">
@@ -395,4 +430,67 @@ onUnmounted(() => {
 .btn-success { background-color: #66bb6a; color: #fff; }
 
 .btn-danger { background-color: #ef5350; color: #fff; }
+
+.ap-info-banner {
+  margin-top: 8px;
+  padding: 12px;
+  background: #e6f7ff;
+  border: 1px solid #91d5ff;
+  border-radius: 8px;
+}
+
+.ap-warning {
+  font-size: 13px;
+  color: #fa8c16;
+  font-weight: 600;
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  background: #fff7e6;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.ap-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding: 4px 0;
+}
+
+.ap-info-label {
+  font-size: 13px;
+  color: #666;
+}
+
+.ap-info-value {
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.ap-ssid {
+  color: #1890ff;
+  font-size: 15px;
+}
+
+.ap-password {
+  color: #52c41a;
+  font-size: 15px;
+  letter-spacing: 1px;
+}
+
+.ap-info-note {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #595959;
+  padding: 6px 10px;
+  background: #fafafa;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.ap-fail-tip {
+  color: #cf1322;
+}
 </style>

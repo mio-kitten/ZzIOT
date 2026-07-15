@@ -4,4 +4,4 @@
  *
  * ⚠️ 修改版本号时，记得查看 .trae/rules/project_rules.md 中的版本号修改规则
  */
-export const APP_VERSION = 'V1.0.1'
+export const APP_VERSION = 'V2.0.0'

@@ -65,7 +65,7 @@ if exist "%NODE_MSI%" (
     echo 正在启动安装程序，请稍候...
     msiexec /i "%NODE_MSI%" /passive /norestart
     echo.
-    echo 如果node安装进度条满了并窗口消失，则可运行一键启动
+    echo 如果node安装进度条满了并窗口消失，则可依需求选择启动可视化面板或者启动内网服务
     pause
     exit /b
 ) else (
@@ -78,7 +78,7 @@ if exist "%NODE_MSI%" (
 :installed
 echo.
 echo ================================================
-echo       依赖已全部安装，请运行"一键启动"
+echo       依赖已全部安装，请依需求选择启动可视化面板或者启动内网服务
 echo ================================================
 echo.
 pause
