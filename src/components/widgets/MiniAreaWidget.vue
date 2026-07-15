@@ -1,3 +1,7 @@
+/**
+ * 迷你面积图组件
+ * 基于 Chart.js，显示最新数据的迷你面积图，右上角显示当前数值
+ */
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { Chart, registerables } from 'chart.js'

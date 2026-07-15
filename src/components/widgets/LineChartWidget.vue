@@ -1,3 +1,8 @@
+/**
+ * 折线图组件
+ * 基于 Chart.js，支持多主题多线模式或单主题多数据解析模式
+ * 可配置最大数据点数、Y轴单位、各主题颜色和MQTT主题
+ */
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { Chart, registerables } from 'chart.js'

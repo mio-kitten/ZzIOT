@@ -1,3 +1,7 @@
+/**
+ * 开关组件
+ * 切换开关状态，向指定 MQTT 主题发送开/关对应值，支持自定义显示文字
+ */
 <script setup lang="ts">
 import { ref, inject, watch } from 'vue'
 import type { DataPoint } from '@/types'

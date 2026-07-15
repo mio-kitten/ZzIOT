@@ -1,3 +1,7 @@
+/**
+ * 顶部标题栏组件
+ * 显示应用标题、连接状态、项目选择器、全屏/项目管理按钮
+ */
 <script setup lang="ts">
 import { computed, inject } from 'vue'
 

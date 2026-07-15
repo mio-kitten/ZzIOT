@@ -1,3 +1,8 @@
+/**
+ * MQTT 客户端封装
+ * 支持巴法云 MQTT（WSS）和 SIoT（WS）两种连接方式
+ * 负责连接/断开、订阅/取消订阅、发送消息、接收消息解析
+ */
 import mqtt from 'mqtt'
 import type { MqttClient, IClientOptions } from 'mqtt'
 import type { PlatformConfig, ParsedData } from '@/types'

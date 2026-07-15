@@ -1,3 +1,7 @@
+/**
+ * 全屏模式顶部控制栏
+ * 全屏查看模式下显示的悬浮控制栏，包含退出全屏、连接、项目切换等功能
+ */
 <script setup lang="ts">
 defineProps<{
   isVisible: boolean

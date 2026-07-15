@@ -1,3 +1,7 @@
+/**
+ * 内网服务配置弹窗
+ * 管理本地内网 MQTT 服务（Aedes Broker）的启动/停止、WiFi热点配置、客户端连接状态
+ */
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 

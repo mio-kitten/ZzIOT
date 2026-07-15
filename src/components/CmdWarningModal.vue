@@ -1,3 +1,7 @@
+/**
+ * 命令窗口警告弹窗
+ * 提醒用户不要关闭后台运行的服务命令窗口，避免面板功能异常
+ */
 <template>
   <div class="cmd-warning-overlay" @click.self="$emit('close')">
     <div class="cmd-warning-modal">

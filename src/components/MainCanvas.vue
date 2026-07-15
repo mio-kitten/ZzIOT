@@ -1,3 +1,8 @@
+/**
+ * 主画布组件
+ * 拖拽容器，承载所有 Widget 组件的渲染、拖拽、缩放、选中操作
+ * 支持编辑模式和查看模式（全屏预览）
+ */
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import type { Widget, DataPoint } from '@/types'

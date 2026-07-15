@@ -1,3 +1,7 @@
+/**
+ * 按钮组件
+ * 点击后向指定 MQTT 主题发送预设内容，用于触发远程设备操作
+ */
 <script setup lang="ts">
 import { inject } from 'vue'
 

@@ -1,3 +1,8 @@
+/**
+ * 项目管理组合式函数
+ * 管理项目列表的增删改查、组件（Widget）的增删改、平台配置的保存/加载
+ * 数据持久化到 localStorage
+ */
 import { ref, computed } from 'vue';
 import type { Project, Widget, PlatformConfig, LineChartWidgetConfig } from '@/types';
 import { getWidgetMinSize } from '@/utils/widgetMinSize';

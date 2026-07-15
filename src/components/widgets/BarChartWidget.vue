@@ -1,3 +1,7 @@
+/**
+ * 柱状图组件
+ * 基于 Chart.js，显示数据对比柱状图，支持配置最大数据点数和Y轴单位
+ */
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { Chart, registerables } from 'chart.js'

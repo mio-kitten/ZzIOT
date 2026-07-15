@@ -1,3 +1,7 @@
+/**
+ * 滑动条组件
+ * 拖动滑块选择数值，实时向指定 MQTT 主题发送当前值
+ */
 <script setup lang="ts">
 import { ref, computed, watch, inject } from 'vue'
 

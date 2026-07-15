@@ -1,3 +1,9 @@
+/**
+ * 内网 MQTT 服务端
+ * 基于 Aedes MQTT Broker 和 Express 的本地服务器
+ * 功能：内网 MQTT 消息中转（WS/TCP）、WiFi热点管理、数据持久化存储、Web 数据管理界面
+ * 端口：Web界面 8080、MQTT WebSocket 1853、MQTT TCP 1883
+ */
 const express = require('express')
 const http = require('http')
 const path = require('path')

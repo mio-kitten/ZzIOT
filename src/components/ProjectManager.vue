@@ -1,3 +1,7 @@
+/**
+ * 项目管理弹窗组件
+ * 提供项目列表的创建、选择、查看、删除操作
+ */
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import type { Project } from '../types'

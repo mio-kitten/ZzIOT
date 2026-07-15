@@ -1,3 +1,7 @@
+/**
+ * 全局 TypeScript 类型定义
+ * 包含项目、组件、平台配置、MQTT 数据等所有核心数据结构
+ */
 export interface SiotConfig {
   server: string
   port: number

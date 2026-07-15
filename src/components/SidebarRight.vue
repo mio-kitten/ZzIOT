@@ -1,3 +1,7 @@
+/**
+ * 右侧属性配置面板
+ * 选中组件后显示其属性配置项：尺寸、主题、MQTT主题、数据源等
+ */
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import type { Widget, ThemeConfig, DataPoint } from '@/types';

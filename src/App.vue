@@ -1,3 +1,8 @@
+/**
+ * 根组件 - 应用主入口
+ * 管理全局状态：项目切换、MQTT连接、组件数据流、编辑/查看模式切换
+ * 通过 provide/inject 向下传递连接状态和消息发送能力
+ */
 <script setup lang="ts">
 import { ref, provide, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useProject } from './composables/useProject'

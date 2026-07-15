@@ -1,3 +1,7 @@
+/**
+ * 输入框组件
+ * 用户输入文本内容后点击发送，将内容发送到指定 MQTT 主题
+ */
 <script setup lang="ts">
 import { ref, watch, inject } from 'vue'
 

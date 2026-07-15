@@ -1,3 +1,7 @@
+/**
+ * 涟漪特效组件
+ * 在连接成功或失败时显示潮汐散射动画效果，增强视觉反馈
+ */
 <script setup lang="ts">
 export interface RippleItem {
   id: number

@@ -1,3 +1,7 @@
+/**
+ * 单行文本组件
+ * 显示单个 MQTT 主题接收到的消息，支持多主题/单主题显示模式
+ */
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import type { DataPoint, ThemeConfig } from '@/types'

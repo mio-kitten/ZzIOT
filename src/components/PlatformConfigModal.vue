@@ -1,3 +1,7 @@
+/**
+ * 平台连接配置弹窗
+ * 配置 SIoT V2 或巴法云 MQTT 的连接参数（服务器地址、端口、用户名、密码等）
+ */
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import type { PlatformConfig, SiotConfig, BafayunConfig } from '@/types'

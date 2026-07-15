@@ -1,3 +1,7 @@
+/**
+ * 左侧组件面板
+ * 提供可拖拽的组件列表（基础组件和显示组件），用户可搜索过滤并拖入画布
+ */
 <script setup lang="ts">
 import { ref } from 'vue'
 

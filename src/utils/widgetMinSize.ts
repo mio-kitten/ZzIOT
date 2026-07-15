@@ -1,3 +1,7 @@
+/**
+ * 组件最小尺寸定义
+ * 每种组件类型的最小宽高限制，用于拖拽和调整大小时的下限约束
+ */
 export interface MinSize {
   width: number
   height: number
