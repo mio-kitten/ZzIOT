@@ -12,7 +12,7 @@ const props = defineProps<{
     step?: number
     topic?: string
   }
-  data?: Map<string, unknown>
+  data?: Record<string, unknown>
 }>()
 
 const emit = defineEmits<{
@@ -37,20 +37,17 @@ const handleInput = (event: Event) => {
   value.value = parseFloat(target.value)
 }
 
-const handleChange = () => {
-  emit('change', value.value)
-  if (sendMessage && props.config.topic) {
-    sendMessage(props.config.topic, value.value.toString())
-  }
-}
-
 const handleMouseDown = () => {
   isDragging.value = true
 }
 
 const handleMouseUp = () => {
+  if (!isDragging.value) return
   isDragging.value = false
-  handleChange()
+  emit('change', value.value)
+  if (sendMessage && props.config.topic) {
+    sendMessage(props.config.topic, value.value.toString())
+  }
 }
 
 /** 从侧边栏快速设定值 */
@@ -80,7 +77,6 @@ watch(() => (props.config as any)._reset, () => {
       :value="value"
       class="slider-input"
       @input="handleInput"
-      @change="handleChange"
       @mousedown.stop="handleMouseDown"
       @mouseup.stop="handleMouseUp"
       @mouseleave.stop="handleMouseUp"

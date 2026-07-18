@@ -2,7 +2,7 @@
 
 # 自制IOT物联网显示面板（iot-visualization）
 
-[![version](https://img.shields.io/badge/version-v2.0.0-blue)](https://github.com/mio-kitten/iot-visualization)
+[![version](https://img.shields.io/badge/version-v2.0.1-blue)](https://github.com/mio-kitten/iot-visualization)
 [![platform](https://img.shields.io/badge/platform-Windows%2010%2B-green)](https://github.com/mio-kitten/iot-visualization)
 [![tech](https://img.shields.io/badge/tech-Vue%203-orange)](https://vuejs.org/)
 [![tech](https://img.shields.io/badge/tech-Electron%2028+-purple)](https://www.electronjs.org/)
@@ -22,7 +22,7 @@
 | **已支持的平台** | Windows 10 及以上X64 |
 | **组件数量** | 9 个 |
 | **状态** | 开发中 |
-|**版本** | V2.0.0 | 
+|**版本** | V2.0.1 | 
 
 ---
 
@@ -60,7 +60,9 @@
 
 作为仿制作品，使用时请注意以下几点：
 
-#### 请注意仔细阅读文件里的使用说明和程序运行时网页端和命令窗口的注释提示！
+##### 请注意仔细阅读文件里的
+#### 使用说明和程序运行时
+#### 网页端和命令窗口的注释提示！
 
 **1.** 本仓库包含所有程序源码，进行了简单的ZIP压缩处理，可供下载
 
@@ -121,7 +123,7 @@ npm run electron:build
 
 #### 或
 
-### 用123云盘下载（V2.0.0）：
+### 用123云盘下载（V2.0.1）：
 
 [网盘链接（注意流量限制 rar包体300mb+）](https://1842972489.share.123pan.cn/123pan/SJqUTd-Do6l3)
 > 提取码：NOTH

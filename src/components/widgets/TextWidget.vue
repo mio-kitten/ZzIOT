@@ -16,7 +16,7 @@ const props = defineProps<{
     displayMode?: 'multiTopic' | 'singleTopic'
     themes?: ThemeConfig[]
   }
-  data: Map<string, DataPoint[]>
+  data: Record<string, DataPoint[]>
 }>()
 
 const containerRef = ref<HTMLElement | null>(null)
@@ -59,7 +59,7 @@ const lines = computed(() => {
     // 单主题多数据模式
     props.config.themes.forEach((theme, index) => {
       const lineId = `line-${index + 1}`
-      const points = props.data.get(lineId)
+      const points = props.data[lineId]
       if (points && points.length > 0) {
         const latest = points[points.length - 1]
         result.push({
@@ -77,7 +77,7 @@ const lines = computed(() => {
     // 多主题模式
     props.config.themes.forEach((theme) => {
       if (theme.topic) {
-        const points = props.data.get(theme.topic)
+        const points = props.data[theme.topic]
         if (points && points.length > 0) {
           const latest = points[points.length - 1]
           result.push({
@@ -93,7 +93,7 @@ const lines = computed(() => {
       }
     })
   } else if (props.config.topic) {
-    const points = props.data.get(props.config.topic)
+    const points = props.data[props.config.topic]
     if (points && points.length > 0) {
       const latest = points[points.length - 1]
       result.push({ text: String(latest.value) })

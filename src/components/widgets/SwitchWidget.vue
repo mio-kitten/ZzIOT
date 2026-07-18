@@ -14,7 +14,7 @@ const props = defineProps<{
     onSend?: string
     offSend?: string
   }
-  data?: Map<string, DataPoint[]>
+  data?: Record<string, DataPoint[]>
 }>()
 
 const emit = defineEmits<{
@@ -27,7 +27,7 @@ const isOn = ref(false)
 // 监听数据变化更新开关状态
 watch(() => props.data, (newData) => {
   if (newData && props.config.topic) {
-    const topicData = newData.get(props.config.topic)
+    const topicData = newData[props.config.topic]
     if (topicData && topicData.length > 0) {
       const lastValue = topicData[topicData.length - 1].value
       const strValue = String(lastValue).toLowerCase().trim()

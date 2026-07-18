@@ -4,7 +4,7 @@
  * 通过 provide/inject 向下传递连接状态和消息发送能力
  */
 <script setup lang="ts">
-import { ref, provide, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
+import { ref, reactive, provide, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useProject } from './composables/useProject'
 import { MqttClientWrapper } from './utils/mqttClient'
 import type { PlatformConfig, DataPoint, Widget, Project } from './types'
@@ -49,11 +49,33 @@ const selectedWidget = computed(() => {
   return currentProject.value?.widgets.find((w: Widget) => w.id === selectedWidgetId.value) || undefined
 })
 const mqttClient = new MqttClientWrapper()
+const topicModes = ref<Record<string, string>>({})
+const topicOriginalTopics = ref<Record<string, string>>({})
+let topicModesInterval: number | null = null
 
 const isFullscreen = ref(false)
 const showTopBar = ref(false)
 const scrollWrapperRef = ref<HTMLElement | null>(null)
 let topBarTimeout: number | null = null
+
+// 消息更新防抖延迟（毫秒），避免高频更新导致卡顿
+const MESSAGE_UPDATE_DELAY = 100
+
+// 缓存最新的消息数据
+const pendingMessages = ref<Map<string, { topic: string; message: string }>>(new Map())
+let flushTimer: ReturnType<typeof setTimeout> | null = null
+
+// 批量刷新消息数据
+const flushPendingMessages = () => {
+  if (pendingMessages.value.size === 0) return
+  
+  pendingMessages.value.forEach(({ topic, message }) => {
+    processMessage(topic, message)
+  })
+  
+  pendingMessages.value.clear()
+  flushTimer = null
+}
 
 // 快捷切换项目冷却（0.8s 内禁止重复切换）
 const isSwitchCooldown = ref(false)
@@ -116,8 +138,7 @@ watch(isFullscreen, async (val) => {
   }
 })
 
-const widgetData = ref<Map<string, Map<string, DataPoint[]>>>(new Map())
-const updateInterval = ref<number | null>(null)
+const widgetData = reactive<Record<string, Record<string, DataPoint[]>>>({})
 const healthCheckInterval = ref<number | null>(null)
 
 const pendingPlatformConfig = ref<PlatformConfig | null>(null)
@@ -186,7 +207,7 @@ watch(isConnecting, (newVal, oldVal) => {
 const getAllTopics = () => {
   if (!currentProject.value) return []
   
-  return currentProject.value.widgets
+  const userTopics = currentProject.value.widgets
     .flatMap((w: Widget) => {
       if (w.type === 'lineChart') {
         const config = w.config as { displayMode: string; topic?: string; themes: { topic: string }[] }
@@ -223,20 +244,48 @@ const getAllTopics = () => {
         const config = w.config as { topic?: string }
         return config.topic ? [config.topic] : []
       }
+      if (w.type === 'button') {
+        const config = w.config as { topic?: string }
+        return config.topic ? [config.topic] : []
+      }
+      if (w.type === 'input') {
+        const config = w.config as { topic?: string }
+        return config.topic ? [config.topic] : []
+      }
+      if (w.type === 'slider') {
+        const config = w.config as { topic?: string }
+        return config.topic ? [config.topic] : []
+      }
       return []
     })
-  }
+  
+  // 去重
+  const uniqueTopics = [...new Set(userTopics)]
+  
+  // 只订阅直接主题名（服务端内部会做 Mixly 格式路由）
+  return uniqueTopics
+}
+
+  let lastTopics = ''
 
   const updateSubscriptions = () => {
-  if (!mqttClient.isConnected()) return
-  // 先取消所有旧订阅，再订阅当前项目的主题
-  mqttClient.unsubscribeAll()
-  
-  const topics = getAllTopics()
-  if (topics.length > 0) {
-    mqttClient.subscribe(topics)
+    if (!mqttClient.isConnected()) return
+    
+    const topics = getAllTopics()
+    const topicsStr = topics.sort().join(',')
+    
+    // 仅在主题真正变化时才重新订阅
+    if (topicsStr === lastTopics) return
+    
+    // 取消所有旧订阅
+    mqttClient.unsubscribeAll()
+    
+    // 订阅新主题
+    if (topics.length > 0) {
+      mqttClient.subscribe(topics)
+      lastTopics = topicsStr
+    }
   }
-}
 
 const showEditor = computed(() => !isFullscreen.value && !showProjectManager.value)
 const showProjectSelector = computed(() => !showProjectManager.value)
@@ -293,21 +342,17 @@ const connectToPlatform = async (config: PlatformConfig, isFromProjectSwitch = f
   isConnecting.value = true
   
   try {
-    const connectPromise = mqttClient.connect(config)
-    
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    await mqttClient.connect(config)
     
     if (!mqttClient.isConnected()) {
-      await new Promise((resolve) => setTimeout(resolve, 4000))
-    }
-    
-    await connectPromise.catch(() => {})
-    
-    if (!mqttClient.isConnected()) {
-      throw new Error('连接超时')
+      throw new Error('连接失败')
     }
     
     isConnected.value = true
+    
+    fetchTopicModes()
+    if (topicModesInterval) clearInterval(topicModesInterval)
+    topicModesInterval = window.setInterval(fetchTopicModes, 5000)
     
     if (!isFromProjectSwitch) {
       const shouldUpdateDefault = checkAndUpdateDefaultConfig(config)
@@ -321,16 +366,15 @@ const connectToPlatform = async (config: PlatformConfig, isFromProjectSwitch = f
       updateProject(currentProject.value.id, { platformConfig: config })
     }
     
+    mqttClient.setOnMessageCallback((topic: string, message: string) => {
+      handleMessage(topic, message)
+    })
+    
     const topics = getAllTopics()
     if (topics.length > 0) {
       mqttClient.subscribe(topics)
     }
     
-    mqttClient.setOnMessageCallback((topic: string, message: string) => {
-      handleMessage(topic, message)
-    })
-    
-    // 监听MQTT底层事件，自动响应断连
     mqttClient.setOnStatusChange((connected) => {
       if (!connected && isConnected.value) {
         isConnected.value = false
@@ -338,10 +382,7 @@ const connectToPlatform = async (config: PlatformConfig, isFromProjectSwitch = f
       }
     })
     
-    // 每5秒主动检查连接健康状态
     startHealthCheck()
-    
-    startUpdateLoop()
   } catch (error) {
     console.error('连接失败:', error)
     isConnected.value = false
@@ -381,41 +422,71 @@ const checkAndUpdateDefaultConfig = (config: PlatformConfig): boolean => {
 
 const MAX_DATA_BUFFER = 500
 
+const fetchTopicModes = async () => {
+  try {
+    const res = await fetch('http://localhost:8080/api/topics/modes?_=' + Date.now(), { cache: 'no-store' })
+    const data = await res.json()
+    // 解析新的返回格式：{ topic: { mode, originalTopic } }
+    Object.keys(data).forEach(topic => {
+      topicModes.value[topic] = data[topic].mode || 'siot'
+      topicOriginalTopics.value[topic] = data[topic].originalTopic || ''
+    })
+  } catch (e) {
+    console.warn('获取主题模式失败:', e)
+  }
+}
+
 const handleMessage = (topic: string, message: string) => {
-  if (!currentProject.value) return
+  // 将消息添加到待处理队列（防抖处理）
+  pendingMessages.value.set(topic, { topic, message })
   
-  currentProject.value.widgets.forEach((widget: Widget) => {
-    let widgetDataUpdated = false
-    const widgetDataMap = widgetData.value.get(widget.id) || new Map()
-    
+  // 如果定时器不存在，创建新的定时器批量刷新
+  if (!flushTimer) {
+    flushTimer = setTimeout(flushPendingMessages, MESSAGE_UPDATE_DELAY)
+  }
+}
+
+const processMessage = (topic: string, message: string) => {
+  // 从 项目ID/用户主题 格式中提取用户主题
+  let userTopic = topic
+  // 解析主题：Mixly格式是 用户名/项目名/主题（三层），SIoT格式是直接主题名（单层）
+  const parts = topic.split('/')
+  const isMixlyFormat = parts.length >= 3
+  if (isMixlyFormat) {
+    userTopic = parts[parts.length - 1]
+  }
+  
+  // 根据主题模式过滤消息
+  // mode 可以是 'siot', 'bafayun', 'mixly'
+  const mode = topicModes.value[userTopic] || 'siot'
+  if (isMixlyFormat && mode !== 'mixly' && mode !== 'bafayun') return
+  if (!isMixlyFormat && mode !== 'siot') return
+  
+  // 只要有组件就处理消息，不依赖 currentProject
+  const widgets = currentProject.value?.widgets || []
+  
+  widgets.forEach((widget: Widget) => {
+    if (!widgetData[widget.id]) {
+      widgetData[widget.id] = {}
+    }
+    const wd = widgetData[widget.id]
+
     if (widget.type === 'lineChart') {
       const config = widget.config as { themes: { id: string; topic: string }[]; maxDataPoints: number; displayMode: string; topic?: string }
-      
-      if (config.displayMode === 'singleTopic' && config.topic === topic) {
+
+      if (config.displayMode === 'singleTopic' && config.topic === userTopic) {
         const values = message.split('/')
-        
         for (let index = 0; index < values.length; index++) {
           const lineId = `line-${index + 1}`
-          const data = [...(widgetDataMap.get(lineId) || [])]
+          const data = [...(wd[lineId] || [])]
           const numValue = parseFloat(values[index].trim())
-          
-          data.push({
-            timestamp: Date.now(),
-            value: isNaN(numValue) ? 0 : numValue,
-            themeId: lineId
-          })
-          
-          if (data.length > MAX_DATA_BUFFER) {
-            data.shift()
-          }
-          
-          widgetDataMap.set(lineId, data)
+          data.push({ timestamp: Date.now(), value: isNaN(numValue) ? 0 : numValue, themeId: lineId })
+          if (data.length > MAX_DATA_BUFFER) data.shift()
+          wd[lineId] = data
         }
-        widgetDataUpdated = true
       } else if (config.displayMode === 'multiTopic') {
         const parts = message.split('\\')
         let value: number
-        
         if (parts.length === 2) {
           value = parseFloat(parts[1])
           if (isNaN(value)) return
@@ -423,194 +494,111 @@ const handleMessage = (topic: string, message: string) => {
           value = parseFloat(message)
           if (isNaN(value)) return
         }
-        
-        // 不论该 topic 是否有匹配的主题，都保存数据
-        const data = [...(widgetDataMap.get(topic) || [])]
-        
-        data.push({
-          timestamp: Date.now(),
-          value,
-          themeId: topic
-        })
-        
-        if (data.length > MAX_DATA_BUFFER) {
-          data.shift()
-        }
-        
-        widgetDataMap.set(topic, data)
-        widgetDataUpdated = true
+        const data = [...(wd[userTopic] || [])]
+        data.push({ timestamp: Date.now(), value, themeId: userTopic })
+        if (data.length > MAX_DATA_BUFFER) data.shift()
+        wd[userTopic] = data
       }
     }
-    
+
     if (widget.type === 'barChart') {
       const config = widget.config as { topic?: string; color?: string; maxDataPoints?: number }
-      
-      if (config.topic === topic) {
+      if (config.topic === userTopic) {
         const value = parseFloat(message)
-        
         if (!isNaN(value)) {
-          const data = [...(widgetDataMap.get(widget.id) || [])]
-          data.push({
-            timestamp: Date.now(),
-            value,
-            themeId: widget.id
-          })
-          
-          if (data.length > MAX_DATA_BUFFER) {
-            data.shift()
-          }
-          
-          widgetDataMap.set(widget.id, data)
-          widgetDataUpdated = true
+          const data = [...(wd[widget.id] || [])]
+          data.push({ timestamp: Date.now(), value, themeId: widget.id })
+          if (data.length > MAX_DATA_BUFFER) data.shift()
+          wd[widget.id] = data
         }
       }
     }
-    
+
     if (widget.type === 'miniArea') {
       const config = widget.config as { topic?: string; color?: string; maxDataPoints?: number }
-      
-      if (config.topic === topic) {
+      if (config.topic === userTopic) {
         const value = parseFloat(message)
-        
         if (!isNaN(value)) {
-          const data = [...(widgetDataMap.get(widget.id) || [])]
-          data.push({
-            timestamp: Date.now(),
-            value,
-            themeId: widget.id
-          })
-          
-          if (data.length > MAX_DATA_BUFFER) {
-            data.shift()
-          }
-          
-          widgetDataMap.set(widget.id, data)
-          widgetDataUpdated = true
+          const data = [...(wd[widget.id] || [])]
+          data.push({ timestamp: Date.now(), value, themeId: widget.id })
+          if (data.length > MAX_DATA_BUFFER) data.shift()
+          wd[widget.id] = data
         }
       }
     }
-    
+
     if (widget.type === 'text') {
       const config = widget.config as { topic?: string }
-      if (config.topic === topic) {
-        const data = [...(widgetDataMap.get(topic) || [])]
-        data.push({
-          timestamp: Date.now(),
-          value: message,
-          themeId: topic
-        })
-        
-        if (data.length > MAX_DATA_BUFFER) {
-          data.shift()
-        }
-        
-        widgetDataMap.set(topic, data)
-        widgetDataUpdated = true
+      if (config.topic === userTopic) {
+        const data = [...(wd[userTopic] || [])]
+        data.push({ timestamp: Date.now(), value: 0, themeId: userTopic } as unknown as DataPoint)
+        ;(data[data.length - 1] as any).value = message
+        if (data.length > MAX_DATA_BUFFER) data.shift()
+        wd[userTopic] = data
       }
     }
-    
+
     if (widget.type === 'textarea') {
       const config = widget.config as { displayMode?: string; topic?: string; themes?: { topic: string }[] }
-      
-      if (config.displayMode === 'singleTopic' && config.topic === topic) {
+      if (config.displayMode === 'singleTopic' && config.topic === userTopic) {
         const values = message.split('/')
-        
         for (let index = 0; index < values.length; index++) {
           const lineId = `line-${index + 1}`
-          const data = [...(widgetDataMap.get(lineId) || [])]
-          data.push({
-            timestamp: Date.now(),
-            value: values[index].trim(),
-            themeId: lineId
-          })
-          
-          if (data.length > MAX_DATA_BUFFER) {
-            data.shift()
-          }
-          
-          widgetDataMap.set(lineId, data)
+          const data = [...(wd[lineId] || [])]
+          data.push({ timestamp: Date.now(), value: 0, themeId: lineId } as unknown as DataPoint)
+          ;(data[data.length - 1] as any).value = values[index].trim()
+          if (data.length > MAX_DATA_BUFFER) data.shift()
+          wd[lineId] = data
         }
-        widgetDataUpdated = true
-      } else if (config.themes?.some(t => t.topic === topic)) {
-        const data = [...(widgetDataMap.get(topic) || [])]
-        data.push({
-          timestamp: Date.now(),
-          value: message,
-          themeId: topic
-        })
-        
-        if (data.length > MAX_DATA_BUFFER) {
-          data.shift()
-        }
-        
-        widgetDataMap.set(topic, data)
-        widgetDataUpdated = true
+      } else if (config.themes?.some(t => t.topic === userTopic)) {
+        const data = [...(wd[userTopic] || [])]
+        data.push({ timestamp: Date.now(), value: 0, themeId: userTopic } as unknown as DataPoint)
+        ;(data[data.length - 1] as any).value = message
+        if (data.length > MAX_DATA_BUFFER) data.shift()
+        wd[userTopic] = data
       }
     }
-    
+
     if (widget.type === 'switch') {
       const config = widget.config as { topic?: string }
-      if (config.topic === topic) {
-        const data = [...(widgetDataMap.get(topic) || [])]
-        data.push({
-          timestamp: Date.now(),
-          value: message,
-          themeId: topic
-        })
-        
-        if (data.length > MAX_DATA_BUFFER) {
-          data.shift()
-        }
-        
-        widgetDataMap.set(topic, data)
-        widgetDataUpdated = true
+      if (config.topic === userTopic) {
+        const data = [...(wd[userTopic] || [])]
+        data.push({ timestamp: Date.now(), value: 0, themeId: userTopic } as unknown as DataPoint)
+        ;(data[data.length - 1] as any).value = message
+        if (data.length > MAX_DATA_BUFFER) data.shift()
+        wd[userTopic] = data
       }
-    }
-    
-    if (widgetDataUpdated) {
-      const newWidgetData = new Map(widgetData.value)
-      newWidgetData.set(widget.id, new Map(widgetDataMap))
-      widgetData.value = newWidgetData
     }
   })
 }
 
 const handleSendMessage = (topic: string, message: string) => {
-  if (mqttClient.isConnected()) {
-    mqttClient.publish(topic, message)
-  }
-}
-
-const startUpdateLoop = () => {
-  if (updateInterval.value) {
-    clearInterval(updateInterval.value)
-  }
-  
-  updateInterval.value = window.setInterval(() => {
-    if (!currentProject.value || !mqttClient.isConnected()) return
-    
-    const allTopics = new Set<string>()
-    
-    currentProject.value.widgets.forEach((widget: Widget) => {
-      if (widget.type === 'lineChart') {
-        const config = widget.config as { themes: { topic: string }[] }
-        config.themes.forEach(t => {
-          if (t.topic) allTopics.add(t.topic)
-        })
-      }
-    })
-  }, 2000)
+  // 走 HTTP API，让服务端根据主题模式同时发送 SIoT 和 Mixly 格式
+  fetch(`http://localhost:8080/api/topics/${encodeURIComponent(topic)}/publish`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ payload: message })
+  }).then(() => {
+    console.log(`消息已发送到主题 ${topic}: ${message}`)
+  }).catch((e) => {
+    console.warn('发送消息失败:', e)
+    // 降级：直接通过 MQTT 发送
+    if (mqttClient.isConnected()) {
+      mqttClient.publish(topic, message)
+      console.log(`通过 MQTT 发送到主题 ${topic}: ${message}`)
+    }
+  })
 }
 
 const disconnectFromPlatform = () => {
+  if (topicModesInterval) {
+    clearInterval(topicModesInterval)
+    topicModesInterval = null
+  }
   mqttClient.disconnect()
   isConnected.value = false
   isConnecting.value = false
   stopHealthCheck()
-  if (updateInterval.value) {
-    clearInterval(updateInterval.value)
-    updateInterval.value = null
-  }
 }
 
 const startHealthCheck = () => {
@@ -631,7 +619,7 @@ const stopHealthCheck = () => {
   }
 }
 
-const handleAddWidget = (type: string, x: number, y: number) => {
+const handleAddWidget = async (type: string, x: number, y: number) => {
   if (!currentProjectId.value || isFullscreen.value) return
   
   const isDoubleClick = x === -1
@@ -654,19 +642,19 @@ const handleAddWidget = (type: string, x: number, y: number) => {
     config.y = y - config.height / 2
   }
   
-  addWidget(currentProjectId.value, widget)
-  widgetData.value.set(widget.id, new Map())
+  await addWidget(currentProjectId.value, widget)
+  widgetData[widget.id] = {}
 }
 
-const handleUpdateWidget = (widgetId: string, updates: Record<string, unknown>) => {
+const handleUpdateWidget = async (widgetId: string, updates: Record<string, unknown>) => {
   if (!currentProjectId.value) return
-  updateWidget(currentProjectId.value, widgetId, updates)
+  await updateWidget(currentProjectId.value, widgetId, updates)
 }
 
-const handleRemoveWidget = (widgetId: string) => {
+const handleRemoveWidget = async (widgetId: string) => {
   if (!currentProjectId.value || isFullscreen.value) return
-  removeWidget(currentProjectId.value, widgetId)
-  widgetData.value.delete(widgetId)
+  await removeWidget(currentProjectId.value, widgetId)
+  delete widgetData[widgetId]
 }
 
 const handleSidebarUpdate = (updates: Record<string, unknown>) => {
@@ -676,8 +664,7 @@ const handleSidebarUpdate = (updates: Record<string, unknown>) => {
 }
 
 const handleClearWidgetData = (widgetId: string) => {
-  widgetData.value.delete(widgetId)
-  widgetData.value = new Map(widgetData.value)
+  delete widgetData[widgetId]
   // 滑动条清空数据：通过配置传递归中信号
   const widget = currentProject.value?.widgets.find((w: Widget) => w.id === widgetId)
   if (widget?.type === 'slider') {
@@ -693,16 +680,16 @@ const handleSelectWidget = (widgetId: string | null) => {
   selectedWidgetId.value = widgetId
 }
 
-const handleCreateProject = (name: string) => {
-  const project = createProject(name)
+const handleCreateProject = async (name: string) => {
+  const project = await createProject(name)
   showProjectManager.value = false
   
   if (pendingPlatformConfig.value) {
-    updateProject(project.id, { platformConfig: pendingPlatformConfig.value })
+    await updateProject(project.id, { platformConfig: pendingPlatformConfig.value })
     connectToPlatform(pendingPlatformConfig.value)
     pendingPlatformConfig.value = null
   } else if (defaultPlatformConfig.value) {
-    updateProject(project.id, { platformConfig: defaultPlatformConfig.value })
+    await updateProject(project.id, { platformConfig: defaultPlatformConfig.value })
   }
 }
 
@@ -773,8 +760,8 @@ const handleViewProject = (projectId: string) => {
   }
 }
 
-const handleDeleteProject = (projectId: string) => {
-  deleteProject(projectId)
+const handleDeleteProject = async (projectId: string) => {
+  await deleteProject(projectId)
   if (!currentProjectId.value) {
     showProjectManager.value = true
   }
@@ -1096,7 +1083,7 @@ onUnmounted(() => {
       <SidebarRight
         v-if="showEditor"
         :widget="selectedWidget"
-        :widget-data="widgetData.get(selectedWidgetId || '')"
+        :widget-data="widgetData[selectedWidgetId || '']"
         @update="handleSidebarUpdate"
         @remove="selectedWidgetId && handleRemoveWidget(selectedWidgetId)"
         @clear-data="selectedWidgetId && handleClearWidgetData(selectedWidgetId)"
@@ -1108,8 +1095,8 @@ onUnmounted(() => {
     
     <!-- 页面水印 -->
     <div class="watermark">
-      <div class="watermark-version">{{ APP_VERSION }}</div>
-      <div>By—雪菱(mio-kitten)</div>
+      <div class="watermark-left">自制IOT物联网显示面板 | {{ APP_VERSION }}</div>
+      <div class="watermark-right">By—雪菱(mio-kitten)</div>
     </div>
   </div>
 </template>
@@ -1183,6 +1170,7 @@ onUnmounted(() => {
 .watermark {
   position: fixed;
   bottom: 6px;
+  left: 10px;
   right: 10px;
   font-size: 12px;
   color: #c0c0c0;
@@ -1191,12 +1179,18 @@ onUnmounted(() => {
   z-index: 10000;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   letter-spacing: 0.3px;
-  text-align: right;
-  line-height: 1.4;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.watermark-version {
-  font-size: 11px;
-  color: #d0d0d0;
+.watermark-left {
+  font-size: 12px;
+  color: #c0c0c0;
+}
+
+.watermark-right {
+  font-size: 12px;
+  color: #c0c0c0;
 }
 </style>

@@ -9,7 +9,7 @@ import { getWidgetMinSize } from '@/utils/widgetMinSize';
 
 const props = defineProps<{
   widget: Widget | undefined;
-  widgetData: Map<string, DataPoint[]> | undefined;
+  widgetData: Record<string, DataPoint[]> | undefined;
 }>();
 
 const emit = defineEmits<{
@@ -161,22 +161,22 @@ const handleUpdateTheme = (index: number, updates: Partial<ThemeConfig>) => {
 
 const handleAddTheme = () => {
   if (props.widget?.type === 'lineChart' && lineChartConfig.value) {
-    const usedColors = new Set(lineChartConfig.value.themes.map(t => t.color))
-    const availableColor = colors.find(c => !usedColors.has(c)) || colors[lineChartConfig.value.themes.length % colors.length]
+    const themeCount = lineChartConfig.value.themes.length
+    const availableColor = colors[themeCount % colors.length]
     const newTheme: ThemeConfig = {
       id: `theme-${Date.now()}`,
-      name: `折线${lineChartConfig.value.themes.length + 1}`,
+      name: `折线${themeCount + 1}`,
       topic: '',
       color: availableColor
     };
     const themes = [...lineChartConfig.value.themes, newTheme];
     emit('update', { themes });
   } else if (props.widget?.type === 'textarea' && textConfig.value?.themes) {
-    const usedColors = new Set(textConfig.value.themes.map(t => t.color))
-    const availableColor = colors.find(c => !usedColors.has(c)) || colors[textConfig.value.themes.length % colors.length]
+    const themeCount = textConfig.value.themes.length
+    const availableColor = colors[themeCount % colors.length]
     const newTheme: ThemeConfig = {
       id: `theme-${Date.now()}`,
-      name: `主题${textConfig.value.themes.length + 1}`,
+      name: `主题${themeCount + 1}`,
       topic: '',
       color: availableColor
     };

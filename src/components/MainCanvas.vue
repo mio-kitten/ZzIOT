@@ -19,7 +19,7 @@ import InputWidget from './widgets/InputWidget.vue'
 const props = defineProps<{
   widgets: Widget[]
   selectedWidgetId: string | null
-  widgetData: Map<string, Map<string, DataPoint[]>>
+  widgetData: Record<string, Record<string, DataPoint[]>>
   showControls?: boolean
   showCenterFlare?: boolean
 }>()
@@ -61,7 +61,7 @@ const getWidgetConfig = (widget: Widget) => {
 }
 
 const getMiniAreaData = (widgetId: string): DataPoint[] => {
-  const data = props.widgetData.get(widgetId)?.get(widgetId) || []
+  const data = props.widgetData[widgetId]?.[widgetId] || []
   if (data.length === 0) {
     // 返回模拟数据确保图表能显示
     const now = Date.now()
@@ -247,12 +247,12 @@ onUnmounted(() => {
         <LineChartWidget
           v-if="widget.type === 'lineChart'"
           :config="getWidgetConfig(widget)"
-          :data="widgetData.get(widget.id) || new Map()"
+          :data="widgetData[widget.id] || {}"
         />
         <BarChartWidget
           v-else-if="widget.type === 'barChart'"
           :config="widget.config"
-          :data="(widgetData.get(widget.id)?.get(widget.id)) || []"
+          :data="(widgetData[widget.id]?.[widget.id]) || []"
         />
         <ButtonWidget
           v-else-if="widget.type === 'button'"
@@ -261,17 +261,17 @@ onUnmounted(() => {
         <SwitchWidget
           v-else-if="widget.type === 'switch'"
           :config="widget.config"
-          :data="widgetData.get(widget.id) || new Map()"
+          :data="widgetData[widget.id] || {}"
         />
         <SliderWidget
           v-else-if="widget.type === 'slider'"
           :config="widget.config"
-          :data="widgetData.get(widget.id) || new Map()"
+          :data="widgetData[widget.id] || {}"
         />
         <TextWidget
           v-else-if="widget.type === 'text' || widget.type === 'textarea'"
           :config="widget.config"
-          :data="widgetData.get(widget.id) || new Map()"
+          :data="widgetData[widget.id] || {}"
         />
         <MiniAreaWidget
           v-else-if="widget.type === 'miniArea'"
@@ -303,10 +303,12 @@ onUnmounted(() => {
 
 <style scoped>
 .widget {
+  z-index: 1;
   user-select: none;
 }
 
 .widget.selected {
+  z-index: 2;
   border-color: #5c9ce6;
   box-shadow: 0 0 0 2px rgba(92, 156, 230, 0.2);
 }
@@ -318,7 +320,7 @@ onUnmounted(() => {
   width: 20px;
   height: 20px;
   cursor: se-resize;
-  z-index: 10;
+  z-index: 1;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath fill='%23999' d='M18 2l2 2-14 14-2-2 14-14z'/%3E%3C/svg%3E") no-repeat;
 }
 

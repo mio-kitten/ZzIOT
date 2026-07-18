@@ -1,7 +1,7 @@
 /**
  * 项目管理组合式函数
  * 管理项目列表的增删改查、组件（Widget）的增删改、平台配置的保存/加载
- * 数据持久化到 localStorage
+ * 数据持久化到服务端文件（每个项目一个文件）
  */
 import { ref, computed } from 'vue';
 import type { Project, Widget, PlatformConfig, LineChartWidgetConfig } from '@/types';
@@ -12,6 +12,23 @@ const currentProjectId = ref<string | null>(null);
 const PLATFORM_KEY = 'iot-platform-config';
 const PROJECTS_KEY = 'iot-projects';
 
+const API_BASE = '/api/projects';
+
+async function apiRequest(url: string, options: RequestInit = {}) {
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+    });
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
 export function useProject() {
   const currentProject = computed(() => {
     if (!currentProjectId.value)
@@ -19,23 +36,53 @@ export function useProject() {
     return projects.value.find(p => p.id === currentProjectId.value) || null;
   });
 
-  const loadProjects = () => {
-    try {
-      const stored = localStorage.getItem(PROJECTS_KEY);
-      if (stored) {
-        projects.value = JSON.parse(stored);
+  const loadProjects = async () => {
+    const result = await apiRequest(API_BASE);
+    if (result && Array.isArray(result)) {
+      projects.value = result;
+      if (projects.value.length > 0 && !currentProjectId.value) {
+        currentProjectId.value = projects.value[0].id;
+      }
+    } else {
+      try {
+        const stored = localStorage.getItem(PROJECTS_KEY);
+        if (stored) {
+          projects.value = JSON.parse(stored);
+        }
+      } catch {
+        projects.value = [];
       }
     }
-    catch {
-      projects.value = [];
-    }
+  };
+
+  const saveProjectToServer = async (project: Project) => {
+    const result = await apiRequest(API_BASE, {
+      method: 'POST',
+      body: JSON.stringify(project)
+    });
+    return result?.success ?? false;
+  };
+
+  const updateProjectOnServer = async (project: Project) => {
+    const result = await apiRequest(`${API_BASE}/${encodeURIComponent(project.name)}`, {
+      method: 'PUT',
+      body: JSON.stringify(project)
+    });
+    return result?.success ?? false;
+  };
+
+  const deleteProjectOnServer = async (projectName: string) => {
+    const result = await apiRequest(`${API_BASE}/${encodeURIComponent(projectName)}`, {
+      method: 'DELETE'
+    });
+    return result?.success ?? false;
   };
 
   const saveProjects = () => {
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects.value));
   };
 
-  const createProject = (name: string): Project => {
+  const createProject = async (name: string): Promise<Project> => {
     const project: Project = {
       id: `project-${Date.now()}`,
       name,
@@ -47,29 +94,37 @@ export function useProject() {
     projects.value.unshift(project);
     currentProjectId.value = project.id;
     saveProjects();
+    await saveProjectToServer(project);
     return project;
   };
 
-  const updateProject = (id: string, updates: Partial<Project>) => {
+  const updateProject = async (id: string, updates: Partial<Project>) => {
     const index = projects.value.findIndex(p => p.id === id);
     if (index !== -1) {
+      const oldName = projects.value[index].name;
       projects.value[index] = {
         ...projects.value[index],
         ...updates,
         updatedAt: new Date().toISOString()
       };
       saveProjects();
+      if (oldName !== projects.value[index].name) {
+        await deleteProjectOnServer(oldName);
+      }
+      await updateProjectOnServer(projects.value[index]);
     }
   };
 
-  const deleteProject = (id: string) => {
+  const deleteProject = async (id: string) => {
     const index = projects.value.findIndex(p => p.id === id);
     if (index !== -1) {
+      const projectName = projects.value[index].name;
       projects.value.splice(index, 1);
       if (currentProjectId.value === id) {
         currentProjectId.value = projects.value[0]?.id || null;
       }
       saveProjects();
+      await deleteProjectOnServer(projectName);
     }
   };
 
@@ -77,16 +132,17 @@ export function useProject() {
     currentProjectId.value = id;
   };
 
-  const addWidget = (projectId: string, widget: Widget) => {
+  const addWidget = async (projectId: string, widget: Widget) => {
     const project = projects.value.find(p => p.id === projectId);
     if (project) {
       project.widgets.push(widget);
       project.updatedAt = new Date().toISOString();
       saveProjects();
+      await updateProjectOnServer(project);
     }
   };
 
-  const updateWidget = (projectId: string, widgetId: string, updates: Partial<Widget['config']>) => {
+  const updateWidget = async (projectId: string, widgetId: string, updates: Partial<Widget['config']>) => {
     const project = projects.value.find(p => p.id === projectId);
     if (project) {
       const widget = project.widgets.find(w => w.id === widgetId);
@@ -102,16 +158,18 @@ export function useProject() {
         widget.config = { ...widget.config, ...clamped };
         project.updatedAt = new Date().toISOString();
         saveProjects();
+        await updateProjectOnServer(project);
       }
     }
   };
 
-  const removeWidget = (projectId: string, widgetId: string) => {
+  const removeWidget = async (projectId: string, widgetId: string) => {
     const project = projects.value.find(p => p.id === projectId);
     if (project) {
       project.widgets = project.widgets.filter(w => w.id !== widgetId);
       project.updatedAt = new Date().toISOString();
       saveProjects();
+      await updateProjectOnServer(project);
     }
   };
 
@@ -125,8 +183,7 @@ export function useProject() {
       if (stored) {
         return JSON.parse(stored);
       }
-    }
-    catch {
+    } catch {
     }
     return null;
   };
@@ -342,7 +399,11 @@ export function useProject() {
     }
   };
 
-  loadProjects();
+  const initProjects = async () => {
+    await loadProjects();
+  };
+
+  initProjects();
 
   return {
     projects,

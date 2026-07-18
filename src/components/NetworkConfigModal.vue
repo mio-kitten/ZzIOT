@@ -22,7 +22,6 @@ const errorMsg = ref('')
 const isOffline = ref(false)
 const hotspotStarted = ref(false)
 const apInfo = ref<{ ssid: string; password: string } | null>(null)
-
 const API_BASE = 'http://localhost:8080'
 
 const fetchStatus = async () => {
@@ -90,7 +89,7 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   fetchStatus()
-  pollTimer = setInterval(fetchStatus, 2000)
+  pollTimer = setInterval(fetchStatus, 1000)
 })
 
 onUnmounted(() => {

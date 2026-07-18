@@ -1,4 +1,4 @@
-/**
+ /**
  * 内网 MQTT 服务端
  * 基于 Aedes MQTT Broker 和 Express 的本地服务器
  * 功能：内网 MQTT 消息中转（WS/TCP）、WiFi热点管理、数据持久化存储、Web 数据管理界面
@@ -541,6 +541,29 @@ function getOrGenerateApConfig() {
   const willReset = !config.ssid || !config.password || config.restartCount > 10
   
   if (willReset) {
+    // 重置确认：不分系统，输入 iot 确认
+    console.log('')
+    console.log('\x1b[43m\x1b[30m' + '='.repeat(60) + '\x1b[0m')
+    console.log('\x1b[43m\x1b[30m  ⚠️  即将重置无网热点名称、密码\x1b[0m')
+    console.log('\x1b[43m\x1b[30m' + '='.repeat(60) + '\x1b[0m')
+    console.log('')
+    console.log('\x1b[33m  要重置无网热点的名称密码，输入iot确认（无论大小写）\x1b[0m')
+    console.log('')
+    
+    try {
+      execSync('powershell -NoProfile -Command "Write-Host \'  \' -NoNewline; $input = Read-Host; if ($input -eq \'iot\' -or $input -eq \'IOT\' -or $input -eq \'Iot\') { Write-Host \'  ✓ 确认重置！\' -ForegroundColor Green; exit 0 } else { Write-Host \'  ✗ 已取消重置\' -ForegroundColor Yellow; exit 1 }"', {
+        stdio: 'inherit'
+      })
+    } catch (e) {
+      // 用户取消或输入错误，跳过重置
+      console.log('')
+      console.log('\x1b[33m  已跳过重置，继续使用现有配置...\x1b[0m')
+      console.log('')
+      config.restartCount = prevCount  // 回滚计数
+      saveApConfig(config)
+      return config
+    }
+    
     config.ssid = `IoT-AP-${generateRandomString(6)}`
     config.password = generateRandomString(8)
     config.restartCount = 0
@@ -548,8 +571,10 @@ function getOrGenerateApConfig() {
     console.log(`\x1b[36m[无网AP] 生成新的随机WiFi: ${config.ssid} 密码: ${config.password}\x1b[0m`)
   } else {
     const remaining = 10 - prevCount
-    console.log(`\x1b[91m断网AP重启${remaining}次后会重置WiFi名称与密码\x1b[0m`)
+    console.log('')
+    console.log(`\x1b[91m断网AP重启${remaining}次后会重置WiFi名称、密码\x1b[0m`)
     console.log(`\x1b[36m[无网AP] 使用已有的WiFi: ${config.ssid} 密码: ${config.password}\x1b[0m`)
+    console.log('')
   }
   
   saveApConfig(config)
@@ -560,11 +585,20 @@ function getApConfig() {
   return loadApConfig()
 }
 
+// 判断是否为"假"IP（虚拟适配器、APIPA等，没有真正的互联网连接）
+function isFakeIP(addr) {
+  if (addr.startsWith('169.254.')) return true   // APIPA（DHCP失败自动分配）
+  if (addr.startsWith('2.0.0.')) return true      // 虚拟机/虚拟适配器残留
+  if (addr.startsWith('192.168.4.')) return true   // WiFi Direct 虚拟适配器
+  if (addr.startsWith('192.168.137.')) return true // Windows 移动热点（自己创建的）
+  return false
+}
+
 function isOffline() {
   const interfaces = os.networkInterfaces()
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) {
+      if (iface.family === 'IPv4' && !iface.internal && !isFakeIP(iface.address)) {
         return false
       }
     }
@@ -587,12 +621,12 @@ function isHotspotAlreadyRunning() {
 
 function getLocalIP() {
   const interfaces = os.networkInterfaces()
-  // 优先返回 137 网段（最稳定），其次192.168.x（排除4.1），最后其他
+  // 优先返回 137 网段（最稳定），其次192.168.x（排除假IP），最后其他
   let fallback192 = null
   let fallbackAny = null
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) {
+      if (iface.family === 'IPv4' && !iface.internal && !isFakeIP(iface.address)) {
         if (iface.address.startsWith('192.168.137.')) return iface.address
         if (iface.address.startsWith('192.168.') && !iface.address.startsWith('192.168.4.')) {
           fallback192 = fallback192 || iface.address
@@ -620,6 +654,7 @@ app.use(express.static(path.join(__dirname, 'public')))
 let broker = null
 let wsServer = null
 let tcpServer = null
+let publishClient = null
 let clientCount = 0
 const connectedClients = new Set()
 
@@ -652,7 +687,7 @@ function addSystemMessage(payload) {
       sysTopic.messages = sysTopic.messages.slice(-500)
     }
   } else {
-    topics.push({ topic: '系统信息', messages: [message] })
+    topics.push({ topic: '系统信息', mode: 'siot', messages: [message] })
   }
   saveData(topics)
 }
@@ -667,7 +702,7 @@ function ensureSystemTopic() {
       const apConfig = getApConfig()
       msg = `内网服务已启动（无网AP模式）—— WiFi: ${apConfig.ssid}  密码: ${apConfig.password}`
     }
-    topics.push({ topic: '系统信息', messages: [{ timestamp: Date.now(), payload: msg }] })
+    topics.push({ topic: '系统信息', mode: 'siot', messages: [{ timestamp: Date.now(), payload: msg }] })
   }
   saveData(topics)
 }
@@ -697,6 +732,7 @@ async function startBroker() {
   })
 
   broker.on('client', (client) => {
+    if (client.id === 'iot-server-publisher') return
     if (!connectedClients.has(client.id)) {
       connectedClients.add(client.id)
       clientCount = connectedClients.size
@@ -705,18 +741,18 @@ async function startBroker() {
   })
 
   broker.on('clientDisconnect', (client) => {
+    if (client.id === 'iot-server-publisher') return
     connectedClients.delete(client.id)
     clientCount = connectedClients.size
     addSystemMessage(`设备已断开 (ID: ${client.id})`)
   })
 
   broker.on('publish', (packet, client) => {
-    // 跳过 HTTP API 自身发布的消息（带 __fromHttp 标记），避免发送方看到自己的消息
-    if (packet.__fromHttp) return
     if (packet.topic && packet.payload && !packet.topic.startsWith('$SYS/')) {
       const topics = loadData()
       const topicName = packet.topic
       const payload = packet.payload.toString()
+
       const existing = topics.find(t => t.topic === topicName)
       const message = { timestamp: Date.now(), payload }
       if (existing) {
@@ -725,7 +761,12 @@ async function startBroker() {
           existing.messages = existing.messages.slice(-500)
         }
       } else {
-        topics.push({ topic: topicName, messages: [message] })
+        const newTopic = {
+          topic: topicName,
+          mode: 'siot',
+          messages: [message]
+        }
+        topics.push(newTopic)
       }
       saveData(topics)
     }
@@ -750,6 +791,25 @@ async function startBroker() {
     tcpServer.listen(BROKER_TCP_PORT, '0.0.0.0', () => {
       console.log(`MQTT Broker (TCP) 已启动，端口 ${BROKER_TCP_PORT}`)
       addSystemMessage(`MQTT Broker 已启动 (WebSocket:${BROKER_WS_PORT}, TCP:${BROKER_TCP_PORT})`)
+      
+      // 创建持久 MQTT 客户端，用于 HTTP API 发布消息
+      publishClient = mqtt.connect(`mqtt://127.0.0.1:${BROKER_TCP_PORT}`, {
+        clientId: 'iot-server-publisher',
+        clean: true,
+        protocolVersion: 4,
+        reconnectPeriod: 3000,
+        connectTimeout: 5000
+      })
+      publishClient.on('connect', () => {
+        console.log('发布客户端已连接到 MQTT Broker')
+      })
+      publishClient.on('error', (err) => {
+        console.error('发布客户端错误:', err.message)
+      })
+      publishClient.on('offline', () => {
+        console.warn('发布客户端离线')
+      })
+      
       resolve({ wsPort: BROKER_WS_PORT, tcpPort: BROKER_TCP_PORT, status: 'started' })
     })
     tcpServer.on('error', (err) => {
@@ -767,6 +827,10 @@ function stopBroker() {
   return new Promise((resolve) => {
     if (broker) {
       broker.close(() => {
+        if (publishClient) {
+          publishClient.end(true)
+          publishClient = null
+        }
         if (wsServer) {
           wsServer.close()
           wsServer = null
@@ -838,6 +902,20 @@ app.post('/api/broker/stop', async (req, res) => {
   }
 })
 
+app.get('/api/topics/modes', (req, res) => {
+  const topics = loadData()
+  const modes = {}
+  topics.forEach(t => {
+    if (t.topic !== '系统信息' && !t.topic.startsWith('$SYS/')) {
+      modes[t.topic] = {
+        mode: t.mode || 'siot',
+        originalTopic: t.originalTopic || null
+      }
+    }
+  })
+  res.json(modes)
+})
+
 app.get('/api/topics', (req, res) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate')
   res.set('Pragma', 'no-cache')
@@ -889,6 +967,97 @@ app.delete('/api/topics', (req, res) => {
   res.json({ success: true })
 })
 
+// ========== 项目文件管理 API ==========
+const PROJECTS_DIR = path.join(DATA_DIR, 'projects')
+
+if (!fs.existsSync(PROJECTS_DIR)) {
+  fs.mkdirSync(PROJECTS_DIR, { recursive: true })
+}
+
+function getProjectFilePath(projectName) {
+  const safeName = projectName.replace(/[^a-zA-Z0-9\u4e00-\u9fa5_-]/g, '_')
+  return path.join(PROJECTS_DIR, `${safeName}.json`)
+}
+
+app.get('/api/projects', (req, res) => {
+  try {
+    const files = fs.readdirSync(PROJECTS_DIR)
+    const projects = files
+      .filter(f => f.endsWith('.json'))
+      .map(f => {
+        try {
+          const content = fs.readFileSync(path.join(PROJECTS_DIR, f), 'utf-8')
+          const project = JSON.parse(content)
+          return project
+        } catch {
+          return null
+        }
+      })
+      .filter(p => p !== null)
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    res.json(projects)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+app.get('/api/projects/:name', (req, res) => {
+  try {
+    const filePath = getProjectFilePath(req.params.name)
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath, 'utf-8')
+      res.json(JSON.parse(content))
+    } else {
+      res.status(404).json({ error: '项目不存在' })
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+app.post('/api/projects', (req, res) => {
+  try {
+    const project = req.body
+    if (!project || !project.name) {
+      return res.status(400).json({ error: '项目名称不能为空' })
+    }
+    const filePath = getProjectFilePath(project.name)
+    fs.writeFileSync(filePath, JSON.stringify(project, null, 2), 'utf-8')
+    res.json({ success: true, project })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+app.put('/api/projects/:name', (req, res) => {
+  try {
+    const project = req.body
+    const filePath = getProjectFilePath(req.params.name)
+    if (fs.existsSync(filePath)) {
+      fs.writeFileSync(filePath, JSON.stringify(project, null, 2), 'utf-8')
+      res.json({ success: true, project })
+    } else {
+      res.status(404).json({ error: '项目不存在' })
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+app.delete('/api/projects/:name', (req, res) => {
+  try {
+    const filePath = getProjectFilePath(req.params.name)
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath)
+      res.json({ success: true })
+    } else {
+      res.status(404).json({ error: '项目不存在' })
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 app.post('/api/topics/:topic/publish', (req, res) => {
   const { payload } = req.body
   if (!payload) {
@@ -896,20 +1065,70 @@ app.post('/api/topics/:topic/publish', (req, res) => {
   }
   const topicName = req.params.topic
 
-  // 确保主题存在于 JSON 中（但不保存消息，避免发送方看到自己的消息）
   const topics = loadData()
-  if (!topics.find(t => t.topic === topicName)) {
-    topics.push({ topic: topicName, messages: [] })
+  let existingTopic = topics.find(t => t.topic === topicName)
+  if (!existingTopic) {
+    topics.push({ topic: topicName, mode: 'siot', messages: [] })
     saveData(topics)
   }
 
   if (broker) {
     const packet = { topic: topicName, payload, qos: 0, retain: false }
     packet.__fromHttp = true
-    broker.publish(packet, () => {})
+    broker.publish(packet, () => {
+      console.log(`[发布] 主题: ${topicName}, 内容: ${payload}`)
+    })
   }
 
   res.json({ success: true })
+})
+
+// 测试发布消息（用于调试）
+app.post('/api/test/publish', async (req, res) => {
+  const { topic, payload } = req.body
+  if (!topic || !payload) {
+    return res.status(400).json({ error: 'topic 和 payload 不能为空' })
+  }
+
+  console.log(`测试发布: 主题=${topic}, 内容=${payload}`)
+
+  // 检查订阅者
+  if (broker && broker.persistence) {
+    try {
+      const subs = await broker.persistence.subscriptionsByTopic(topic)
+      console.log(`主题 ${topic} 的订阅者:`, JSON.stringify(subs.map((s) => ({ clientId: s.clientId, topic: s.topic }))))
+    } catch (e) {
+      console.log('无法查询订阅者:', e)
+    }
+  }
+
+  // 同时使用两种方式发布
+  let results = []
+
+  // 方式1: broker.publish
+  if (broker) {
+    broker.publish({ topic, payload, qos: 0, retain: false }, () => {
+      console.log(`broker.publish 完成: ${topic}`)
+      results.push('broker.publish:OK')
+    })
+  }
+
+  // 方式2: publishClient
+  if (publishClient && publishClient.connected) {
+    publishClient.publish(topic, payload, { qos: 0, retain: false }, (err) => {
+      if (err) {
+        console.error('publishClient 发布失败:', err.message)
+        results.push('publishClient:FAIL')
+      } else {
+        console.log(`publishClient 发布成功: ${topic}`)
+        results.push('publishClient:OK')
+      }
+    })
+  } else {
+    results.push('publishClient:NOT_CONNECTED')
+  }
+
+  res.json({ success: true, message: `消息已发布到主题 ${topic}`, results })
 })
 
 // 启动时：先检测断网，关闭已有热点（避免干扰新AP创建），再创建真实WiFi热点
@@ -959,7 +1178,7 @@ async function startOfflineHotspot() {
     execSync('net stop wlan /y', { stdio: 'ignore', timeout: 10000 })
     execSync('net start wlan', { stdio: 'ignore', timeout: 10000 })
     console.log('\x1b[36m[2.4G] WLAN服务已重启\x1b[0m')
-    execSync('timeout /t 3 /nobreak >nul', { stdio: 'ignore' })
+    await new Promise(resolve => setTimeout(resolve, 3000))
   } catch (e) {
     console.log('\x1b[33m[2.4G] WLAN服务重启失败（继续尝试）\x1b[0m')
   }
@@ -973,11 +1192,11 @@ async function startOfflineHotspot() {
     let detectedIP = null
     while (Date.now() - waitStart < 5000) {
       const currentIP = getHostedNetworkIP()
-      if (currentIP && currentIP !== '192.168.4.1') {
+      if (currentIP) {
         detectedIP = currentIP
         break
       }
-      execSync('timeout /t 1 /nobreak >nul', { stdio: 'ignore' })
+      await new Promise(resolve => setTimeout(resolve, 1000))
       const interfaces = os.networkInterfaces()
       for (const name of Object.keys(interfaces)) {
         for (const iface of interfaces[name]) {
@@ -1131,6 +1350,7 @@ httpServer.listen(WEB_PORT, '0.0.0.0', () => {
   console.log(`\x1b[33m============================================\x1b[0m`)
   console.log(`  ESP32/Mind+ 连接: IP ${esp32IP}  端口 ${BROKER_TCP_PORT}  账号 siot  密码 dfrobot`)
   console.log(`\x1b[33m============================================\x1b[0m`)
+  
   console.log(``)
   console.log(`\x1b[94m提示: 在可视化面板中点击"内网服务"可开关MQTT Broker\x1b[0m`)
   console.log(``)

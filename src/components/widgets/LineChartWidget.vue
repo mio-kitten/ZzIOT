@@ -17,7 +17,7 @@ const props = defineProps<{
     yAxisUnit: string
     displayMode: 'multiTopic' | 'singleTopic'
   }
-  data: Map<string, DataPoint[]>
+  data: Record<string, DataPoint[]>
 }>()
 
 const parsedData = computed(() => {
@@ -32,9 +32,9 @@ const currentValues = computed(() => {
     let themeData: DataPoint[] = []
     if (props.config.displayMode === 'singleTopic') {
       const lineId = `line-${index + 1}`
-      themeData = parsedData.value.get(lineId) || []
+      themeData = parsedData.value[lineId] || []
     } else {
-      themeData = parsedData.value.get(theme.topic) || parsedData.value.get(theme.id) || []
+      themeData = parsedData.value[theme.topic] || parsedData.value[theme.id] || []
     }
     const displayData = themeData.slice(-props.config.maxDataPoints)
     const lastValue = displayData.length > 0 ? displayData[displayData.length - 1].value : '--'
@@ -75,7 +75,7 @@ const createChart = () => {
   if (props.config.displayMode === 'singleTopic') {
     datasets = props.config.themes.map((theme, index) => {
       const lineId = `line-${index + 1}`
-      const lineData = parsedData.value.get(lineId) || []
+      const lineData = parsedData.value[lineId] || []
       const displayData = lineData.slice(-props.config.maxDataPoints)
       return {
         label: theme.name,
@@ -92,7 +92,7 @@ const createChart = () => {
     })
   } else {
     datasets = props.config.themes.map(theme => {
-      const themeData = parsedData.value.get(theme.topic) || parsedData.value.get(theme.id) || []
+      const themeData = parsedData.value[theme.topic] || parsedData.value[theme.id] || []
       const displayData = themeData.slice(-props.config.maxDataPoints)
       return {
         label: theme.name,
@@ -108,8 +108,8 @@ const createChart = () => {
     })
   }
   
-  const allData = Array.from(parsedData.value.values()).flat()
-  const allTimestamps = [...new Set(allData.map(d => d.timestamp))].sort((a, b) => a - b)
+  const allData = Object.values(parsedData.value).flat() as DataPoint[]
+  const allTimestamps = [...new Set(allData.map((d: DataPoint) => d.timestamp))].sort((a, b) => a - b)
   const displayTimestamps = allTimestamps.slice(-props.config.maxDataPoints)
   const labels = displayTimestamps.map(ts => formatTime(ts))
   
@@ -190,8 +190,8 @@ const updateChart = () => {
     animTimeout = null
   }
   
-  const allData = Array.from(parsedData.value.values()).flat()
-  const allTimestamps = [...new Set(allData.map(d => d.timestamp))].sort((a, b) => a - b)
+  const allData = Object.values(parsedData.value).flat() as DataPoint[]
+  const allTimestamps = [...new Set(allData.map((d: DataPoint) => d.timestamp))].sort((a, b) => a - b)
   const displayTimestamps = allTimestamps.slice(-props.config.maxDataPoints)
   const labels = displayTimestamps.map(ts => formatTime(ts))
   
@@ -208,9 +208,9 @@ const updateChart = () => {
     let themeData: DataPoint[] = []
     if (props.config.displayMode === 'singleTopic') {
       const lineId = `line-${index + 1}`
-      themeData = parsedData.value.get(lineId) || []
+      themeData = parsedData.value[lineId] || []
     } else {
-      themeData = parsedData.value.get(theme.topic) || parsedData.value.get(theme.id) || []
+      themeData = parsedData.value[theme.topic] || parsedData.value[theme.id] || []
     }
     const displayData = themeData.slice(-maxLen)
     const newValues = displayData.map(d => d.value)
