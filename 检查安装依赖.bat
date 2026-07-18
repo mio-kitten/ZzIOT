@@ -48,7 +48,7 @@ set "ARCH=x64"
 if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
 echo 当前架构: %ARCH%
 
-set "NODE_MSI=%SCRIPT_DIR%node-v24.17.0-%ARCH%.msi"
+set "NODE_MSI=%SCRIPT_DIR%node-v24.18.0-%ARCH%.msi"
 
 where node >nul 2>&1
 if %errorlevel% equ 0 (
@@ -61,7 +61,7 @@ echo [WARNING] Node.js 未安装
 
 if exist "%NODE_MSI%" (
     echo 开始本地安装node......
-    echo 安装包: node-v24.17.0-%ARCH%.msi
+    echo 安装包: node-v24.18.0-%ARCH%.msi
     echo 正在启动安装程序，请稍候...
     msiexec /i "%NODE_MSI%" /passive /norestart
     echo.
