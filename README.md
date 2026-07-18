@@ -2,7 +2,7 @@
 
 # 自制IOT物联网显示面板（iot-visualization）
 
-[![version](https://img.shields.io/badge/version-v2.0.1-blue)](https://github.com/mio-kitten/iot-visualization)
+[![version](https://img.shields.io/badge/version-v2.1.0-blue)](https://github.com/mio-kitten/iot-visualization)
 [![platform](https://img.shields.io/badge/platform-Windows%2010%2B-green)](https://github.com/mio-kitten/iot-visualization)
 [![tech](https://img.shields.io/badge/tech-Vue%203-orange)](https://vuejs.org/)
 [![tech](https://img.shields.io/badge/tech-Electron%2028+-purple)](https://www.electronjs.org/)
@@ -22,7 +22,7 @@
 | **已支持的平台** | Windows 10 及以上X64 |
 | **组件数量** | 9 个 |
 | **状态** | 开发中 |
-|**版本** | V2.0.1 | 
+|**版本** | V2.1.0 | 
 
 ---
 
@@ -52,7 +52,7 @@
 
 ### 项目管理界面
 
-![项目管理界面](screenshot-1781793382540.png)
+![项目管理界面](屏幕截图_18-7-2026_141053_localhost.jpeg)
 
 ---
 
@@ -91,7 +91,7 @@ _请注意仔细阅读文件里的 **使用说明** 和程序运行时 **网页�
 
 ### 数据管理界面
 
-![数据管理界面](screenshot-数据管理界面.png)
+![数据管理界面](屏幕截图_18-7-2026_141040_192.168.1.49.jpeg)
 
 
 ---
@@ -121,9 +121,9 @@ npm run electron:build
 
 #### 或
 
-### 用123云盘下载（V2.0.1）：
+### 用123云盘下载（V2.1.0）：
 
-[网盘链接（注意流量限制 rar包体300mb+）](https://1842972489.share.123pan.cn/123pan/SJqUTd-Do6l3)
+[网盘链接（注意流量限制 7Z包体400mb+）](https://1842972489.share.123pan.cn/123pan/SJqUTd-Do6l3)
 > 提取码：NOTH
 
 ---

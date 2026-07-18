@@ -3,7 +3,7 @@
  * 显示应用标题、连接状态、项目选择器、全屏/项目管理按钮
  */
 <script setup lang="ts">
-import { computed, inject } from 'vue'
+import { ref, computed, inject } from 'vue'
 
 const props = defineProps<{
   isConnected: boolean
@@ -25,7 +25,28 @@ const emit = defineEmits<{
   scrollToCenter: []
   createProject: []
   openIoTService: []
+  exportProjects: []
+  importProjects: [file: File]
 }>()
+
+const fileInputRef = ref<HTMLInputElement | null>(null)
+
+const handleExport = () => {
+  emit('exportProjects')
+}
+
+const handleImportClick = () => {
+  fileInputRef.value?.click()
+}
+
+const handleFileChange = (e: Event) => {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) {
+    emit('importProjects', file)
+  }
+  input.value = ''
+}
 
 const openNetworkConfig = inject<() => void>('openNetworkConfig', () => {})
 
@@ -53,6 +74,19 @@ const headerTitle = computed(() => {
       <button v-if="!showProjectSelector" class="btn btn-secondary" @click="emit('createProject')" style="margin-right: 12px;">
         + 新建项目
       </button>
+      <button v-if="!showProjectSelector" class="btn btn-secondary" @click="handleExport" style="margin-right: 12px;" title="导出项目到文件">
+        ↑ 导出
+      </button>
+      <button v-if="!showProjectSelector" class="btn btn-secondary" @click="handleImportClick" style="margin-right: 12px;" title="从JSON文件导入项目">
+        ↓ 导入
+      </button>
+      <input
+        ref="fileInputRef"
+        type="file"
+        accept=".json"
+        style="display: none"
+        @change="handleFileChange"
+      />
       <button v-if="!showProjectSelector" class="btn btn-secondary" @click="openNetworkConfig()" style="margin-right: 12px;">
         内网服务
       </button>

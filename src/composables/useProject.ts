@@ -1,9 +1,9 @@
 /**
  * 项目管理组合式函数
  * 管理项目列表的增删改查、组件（Widget）的增删改、平台配置的保存/加载
- * 数据持久化到服务端文件（每个项目一个文件）
+ * 数据持久化到浏览器 localStorage，支持导出/导入 JSON 文件实现跨设备迁移
  */
-import { ref, computed } from 'vue';
+import { ref, computed, reactive } from 'vue';
 import type { Project, Widget, PlatformConfig, LineChartWidgetConfig } from '@/types';
 import { getWidgetMinSize } from '@/utils/widgetMinSize';
 
@@ -12,22 +12,21 @@ const currentProjectId = ref<string | null>(null);
 const PLATFORM_KEY = 'iot-platform-config';
 const PROJECTS_KEY = 'iot-projects';
 
-const API_BASE = '/api/projects';
-
-async function apiRequest(url: string, options: RequestInit = {}) {
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-      }
-    });
-    return await response.json();
-  } catch {
-    return null;
-  }
+export interface ImportDialogState {
+  show: boolean
+  type: 'alert' | 'confirm'
+  message: string
+  detail: string
+  resolve: ((value: boolean) => void) | null
 }
+
+const importDialog = reactive<ImportDialogState>({
+  show: false,
+  type: 'alert',
+  message: '',
+  detail: '',
+  resolve: null
+})
 
 export function useProject() {
   const currentProject = computed(() => {
@@ -36,53 +35,25 @@ export function useProject() {
     return projects.value.find(p => p.id === currentProjectId.value) || null;
   });
 
-  const loadProjects = async () => {
-    const result = await apiRequest(API_BASE);
-    if (result && Array.isArray(result)) {
-      projects.value = result;
-      if (projects.value.length > 0 && !currentProjectId.value) {
-        currentProjectId.value = projects.value[0].id;
-      }
-    } else {
-      try {
-        const stored = localStorage.getItem(PROJECTS_KEY);
-        if (stored) {
-          projects.value = JSON.parse(stored);
+  const loadProjects = () => {
+    try {
+      const stored = localStorage.getItem(PROJECTS_KEY);
+      if (stored) {
+        projects.value = JSON.parse(stored);
+        if (projects.value.length > 0 && !currentProjectId.value) {
+          currentProjectId.value = projects.value[0].id;
         }
-      } catch {
-        projects.value = [];
       }
+    } catch {
+      projects.value = [];
     }
-  };
-
-  const saveProjectToServer = async (project: Project) => {
-    const result = await apiRequest(API_BASE, {
-      method: 'POST',
-      body: JSON.stringify(project)
-    });
-    return result?.success ?? false;
-  };
-
-  const updateProjectOnServer = async (project: Project) => {
-    const result = await apiRequest(`${API_BASE}/${encodeURIComponent(project.name)}`, {
-      method: 'PUT',
-      body: JSON.stringify(project)
-    });
-    return result?.success ?? false;
-  };
-
-  const deleteProjectOnServer = async (projectName: string) => {
-    const result = await apiRequest(`${API_BASE}/${encodeURIComponent(projectName)}`, {
-      method: 'DELETE'
-    });
-    return result?.success ?? false;
   };
 
   const saveProjects = () => {
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects.value));
   };
 
-  const createProject = async (name: string): Promise<Project> => {
+  const createProject = (name: string): Project => {
     const project: Project = {
       id: `project-${Date.now()}`,
       name,
@@ -94,37 +65,29 @@ export function useProject() {
     projects.value.unshift(project);
     currentProjectId.value = project.id;
     saveProjects();
-    await saveProjectToServer(project);
     return project;
   };
 
-  const updateProject = async (id: string, updates: Partial<Project>) => {
+  const updateProject = (id: string, updates: Partial<Project>) => {
     const index = projects.value.findIndex(p => p.id === id);
     if (index !== -1) {
-      const oldName = projects.value[index].name;
       projects.value[index] = {
         ...projects.value[index],
         ...updates,
         updatedAt: new Date().toISOString()
       };
       saveProjects();
-      if (oldName !== projects.value[index].name) {
-        await deleteProjectOnServer(oldName);
-      }
-      await updateProjectOnServer(projects.value[index]);
     }
   };
 
-  const deleteProject = async (id: string) => {
+  const deleteProject = (id: string) => {
     const index = projects.value.findIndex(p => p.id === id);
     if (index !== -1) {
-      const projectName = projects.value[index].name;
       projects.value.splice(index, 1);
       if (currentProjectId.value === id) {
         currentProjectId.value = projects.value[0]?.id || null;
       }
       saveProjects();
-      await deleteProjectOnServer(projectName);
     }
   };
 
@@ -132,17 +95,16 @@ export function useProject() {
     currentProjectId.value = id;
   };
 
-  const addWidget = async (projectId: string, widget: Widget) => {
+  const addWidget = (projectId: string, widget: Widget) => {
     const project = projects.value.find(p => p.id === projectId);
     if (project) {
       project.widgets.push(widget);
       project.updatedAt = new Date().toISOString();
       saveProjects();
-      await updateProjectOnServer(project);
     }
   };
 
-  const updateWidget = async (projectId: string, widgetId: string, updates: Partial<Widget['config']>) => {
+  const updateWidget = (projectId: string, widgetId: string, updates: Partial<Widget['config']>) => {
     const project = projects.value.find(p => p.id === projectId);
     if (project) {
       const widget = project.widgets.find(w => w.id === widgetId);
@@ -158,18 +120,16 @@ export function useProject() {
         widget.config = { ...widget.config, ...clamped };
         project.updatedAt = new Date().toISOString();
         saveProjects();
-        await updateProjectOnServer(project);
       }
     }
   };
 
-  const removeWidget = async (projectId: string, widgetId: string) => {
+  const removeWidget = (projectId: string, widgetId: string) => {
     const project = projects.value.find(p => p.id === projectId);
     if (project) {
       project.widgets = project.widgets.filter(w => w.id !== widgetId);
       project.updatedAt = new Date().toISOString();
       saveProjects();
-      await updateProjectOnServer(project);
     }
   };
 
@@ -186,6 +146,179 @@ export function useProject() {
     } catch {
     }
     return null;
+  };
+
+  /**
+   * 导出单个项目为 JSON 文件
+   * @param project 要导出的项目
+   * @param method 'manual' 弹出文件夹选择器保存 | 'auto' 浏览器自动下载
+   */
+  const exportProject = async (project: Project, method: 'manual' | 'auto'): Promise<boolean> => {
+    const data = JSON.stringify([project], null, 2);
+    const filename = `${project.name}.json`;
+
+    if (method === 'manual') {
+      try {
+        const dirHandle = await (window as any).showDirectoryPicker({
+          mode: 'readwrite',
+          startIn: 'documents'
+        });
+        const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(data);
+        await writable.close();
+        return new Promise((resolve) => {
+          importDialog.type = 'alert';
+          importDialog.message = '导出成功';
+          importDialog.detail = `项目「${project.name}」已保存到所选文件夹`;
+          importDialog.show = true;
+          importDialog.resolve = () => {
+            importDialog.show = false;
+            resolve(true);
+          };
+        });
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return false;
+        return new Promise((resolve) => {
+          importDialog.type = 'alert';
+          importDialog.message = '导出失败';
+          importDialog.detail = '手动保存失败，请重试';
+          importDialog.show = true;
+          importDialog.resolve = () => {
+            importDialog.show = false;
+            resolve(false);
+          };
+        });
+      }
+    } else {
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return true;
+    }
+  };
+
+  /**
+   * 从 JSON 文件导入项目（合并到现有项目列表）
+   */
+  const importProjects = (file: File): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target?.result as string);
+          if (!Array.isArray(data)) {
+            importDialog.type = 'alert';
+            importDialog.message = '导入失败';
+            importDialog.detail = '文件格式不正确，需要项目数组';
+            importDialog.show = true;
+            importDialog.resolve = (confirmed: boolean) => {
+              importDialog.show = false;
+              resolve(false);
+            };
+            return;
+          }
+
+          const existingNameMap = new Map(projects.value.map(p => [p.name.toLowerCase(), p]));
+          const duplicateNames: string[] = [];
+          data.forEach((p: Project) => {
+            const existing = existingNameMap.get(p.name.toLowerCase());
+            if (existing) {
+              duplicateNames.push(p.name);
+            }
+          });
+
+          if (duplicateNames.length > 0) {
+            importDialog.type = 'confirm';
+            importDialog.message = '项目名称重复';
+            importDialog.detail = `以下 ${duplicateNames.length} 个项目名称已存在，是否覆盖？\n${duplicateNames.join('、')}`;
+            importDialog.show = true;
+            importDialog.resolve = (confirmed: boolean) => {
+              importDialog.show = false;
+              if (confirmed) {
+                performImport(data, resolve, true);
+              } else {
+                resolve(false);
+              }
+            };
+            return;
+          }
+
+          performImport(data, resolve, false);
+        } catch {
+          importDialog.type = 'alert';
+          importDialog.message = '导入失败';
+          importDialog.detail = '文件内容不是有效的 JSON';
+          importDialog.show = true;
+          importDialog.resolve = (confirmed: boolean) => {
+            importDialog.show = false;
+            resolve(false);
+          };
+        }
+      };
+      reader.onerror = () => {
+        importDialog.type = 'alert';
+        importDialog.message = '导入失败';
+        importDialog.detail = '无法读取文件';
+        importDialog.show = true;
+        importDialog.resolve = (confirmed: boolean) => {
+          importDialog.show = false;
+          resolve(false);
+        };
+      };
+      reader.readAsText(file);
+    });
+  };
+
+  const performImport = (data: Project[], resolve: (value: boolean) => void, overwrite: boolean) => {
+    const existingNameSet = new Set(projects.value.map(p => p.name.toLowerCase()));
+    let addedCount = 0;
+
+    if (overwrite) {
+      const importNameSet = new Set(data.map(p => p.name.toLowerCase()));
+      projects.value = projects.value.filter(p => !importNameSet.has(p.name.toLowerCase()));
+    }
+
+    data.forEach((p: Project) => {
+      if (!overwrite && existingNameSet.has(p.name.toLowerCase())) {
+        return;
+      }
+      projects.value.unshift(p);
+      addedCount++;
+    });
+
+    if (addedCount === 0) {
+      importDialog.type = 'alert';
+      importDialog.message = '导入完成';
+      importDialog.detail = '没有新项目（所有项目已存在且未覆盖）';
+      importDialog.show = true;
+      importDialog.resolve = (confirmed: boolean) => {
+        importDialog.show = false;
+        resolve(false);
+      };
+      return;
+    }
+
+    saveProjects();
+    if (!currentProjectId.value || !projects.value.find(p => p.id === currentProjectId.value)) {
+      currentProjectId.value = projects.value[0].id;
+    }
+    importDialog.type = 'alert';
+    importDialog.message = '导入成功';
+    importDialog.detail = overwrite
+      ? `成功导入/覆盖 ${addedCount} 个项目`
+      : `成功导入 ${addedCount} 个项目`;
+    importDialog.show = true;
+    importDialog.resolve = (confirmed: boolean) => {
+      importDialog.show = false;
+      resolve(true);
+    };
   };
 
   const createLineChartWidget = (x: number, y: number): Widget => {
@@ -299,8 +432,8 @@ export function useProject() {
       height: 120,
       x,
       y,
-      minValue: 0,
-      maxValue: 100,
+      min: 0,
+      max: 100,
       step: 1,
       topic: ''
     };
@@ -338,7 +471,7 @@ export function useProject() {
       x,
       y,
       textColor: '#333333',
-      displayMode: 'multiTopic',
+      displayMode: 'multiTopic' as const,
       topic: '',
       themes: [
         { id: 'theme-1', name: '主题1', topic: '', color: '#5c9ce6' },
@@ -376,39 +509,25 @@ export function useProject() {
 
   const createWidget = (type: string, x: number, y: number): Widget => {
     switch (type) {
-      case 'lineChart':
-        return createLineChartWidget(x, y);
-      case 'barChart':
-        return createBarChartWidget(x, y);
-      case 'button':
-        return createButtonWidget(x, y);
-      case 'switch':
-        return createSwitchWidget(x, y);
-      case 'slider':
-        return createSliderWidget(x, y);
-      case 'text':
-        return createTextWidget(x, y);
-      case 'miniArea':
-        return createMiniAreaWidget(x, y);
-      case 'input':
-        return createInputWidget(x, y);
-      case 'textarea':
-        return createTextareaWidget(x, y);
-      default:
-        return createLineChartWidget(x, y);
+      case 'lineChart': return createLineChartWidget(x, y);
+      case 'input': return createInputWidget(x, y);
+      case 'barChart': return createBarChartWidget(x, y);
+      case 'button': return createButtonWidget(x, y);
+      case 'switch': return createSwitchWidget(x, y);
+      case 'slider': return createSliderWidget(x, y);
+      case 'text': return createTextWidget(x, y);
+      case 'textarea': return createTextareaWidget(x, y);
+      case 'miniArea': return createMiniAreaWidget(x, y);
+      default: return createLineChartWidget(x, y);
     }
   };
 
-  const initProjects = async () => {
-    await loadProjects();
-  };
-
-  initProjects();
-
   return {
     projects,
-    currentProject,
     currentProjectId,
+    currentProject,
+    loadProjects,
+    saveProjects,
     createProject,
     updateProject,
     deleteProject,
@@ -418,14 +537,18 @@ export function useProject() {
     removeWidget,
     savePlatformConfig,
     loadPlatformConfig,
+    exportProject,
+    importProjects,
+    importDialog,
+    createWidget,
     createLineChartWidget,
+    createInputWidget,
     createBarChartWidget,
     createButtonWidget,
     createSwitchWidget,
     createSliderWidget,
     createTextWidget,
     createTextareaWidget,
-    createMiniAreaWidget,
-    createWidget
+    createMiniAreaWidget
   };
 }

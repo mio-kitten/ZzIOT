@@ -18,6 +18,7 @@ import TopBar from './components/TopBar.vue'
 import RippleEffect from './components/RippleEffect.vue'
 import NetworkConfigModal from './components/NetworkConfigModal.vue'
 import CmdWarningModal from './components/CmdWarningModal.vue'
+import ExportModal from './components/ExportModal.vue'
 import type { RippleItem } from './components/RippleEffect.vue'
 import { APP_VERSION } from './version'
 
@@ -25,6 +26,7 @@ const {
   projects,
   currentProject,
   currentProjectId,
+  loadProjects,
   createProject,
   updateProject,
   deleteProject,
@@ -34,6 +36,9 @@ const {
   removeWidget,
   savePlatformConfig,
   loadPlatformConfig,
+  exportProject,
+  importProjects,
+  importDialog,
   createWidget
 } = useProject()
 
@@ -43,6 +48,8 @@ const showPlatformConfig = ref(false)
 const showProjectManager = ref(!currentProjectId.value)
 const showNetworkConfig = ref(false)
 const showCmdWarning = ref(true)
+const showExportModal = ref(false)
+const noProjectAlert = ref(false)
 const triggerCreateCount = ref(0)
 const selectedWidgetId = ref<string | null>(null)
 const selectedWidget = computed(() => {
@@ -680,16 +687,16 @@ const handleSelectWidget = (widgetId: string | null) => {
   selectedWidgetId.value = widgetId
 }
 
-const handleCreateProject = async (name: string) => {
-  const project = await createProject(name)
+const handleCreateProject = (name: string) => {
+  const project = createProject(name)
   showProjectManager.value = false
   
   if (pendingPlatformConfig.value) {
-    await updateProject(project.id, { platformConfig: pendingPlatformConfig.value })
+    updateProject(project.id, { platformConfig: pendingPlatformConfig.value })
     connectToPlatform(pendingPlatformConfig.value)
     pendingPlatformConfig.value = null
   } else if (defaultPlatformConfig.value) {
-    await updateProject(project.id, { platformConfig: defaultPlatformConfig.value })
+    updateProject(project.id, { platformConfig: defaultPlatformConfig.value })
   }
 }
 
@@ -760,8 +767,8 @@ const handleViewProject = (projectId: string) => {
   }
 }
 
-const handleDeleteProject = async (projectId: string) => {
-  await deleteProject(projectId)
+const handleDeleteProject = (projectId: string) => {
+  deleteProject(projectId)
   if (!currentProjectId.value) {
     showProjectManager.value = true
   }
@@ -782,6 +789,23 @@ const handleOpenProjectManager = () => {
 
 const handleCreateProjectClick = () => {
   triggerCreateCount.value++
+}
+
+const handleExportProjects = () => {
+  if (projects.value.length === 0) {
+    noProjectAlert.value = true
+    return
+  }
+  showExportModal.value = true
+}
+
+const handleExportConfirm = async (project: Project, method: 'manual' | 'auto') => {
+  showExportModal.value = false
+  await exportProject(project, method)
+}
+
+const handleImportProjects = (file: File) => {
+  importProjects(file)
 }
 
 const handleOpenIoTService = () => {
@@ -971,6 +995,7 @@ provide('sendMessage', handleSendMessage)
 
 // 挂载文档级平移事件
 onMounted(() => {
+  loadProjects()
   document.addEventListener('mousemove', handleCanvasPanMove)
   document.addEventListener('mouseup', handleCanvasPanEnd)
 })
@@ -1041,6 +1066,8 @@ onUnmounted(() => {
       @scroll-to-center="handleScrollToCenter"
       @create-project="handleCreateProjectClick"
       @open-iot-service="handleOpenIoTService"
+      @export-projects="handleExportProjects"
+      @import-projects="handleImportProjects"
     />
     
     <PlatformConfigModal
@@ -1059,7 +1086,7 @@ onUnmounted(() => {
       @view="handleViewProject"
       @delete="handleDeleteProject"
     />
-    
+
     <div v-else class="panel-container">
       <SidebarLeft 
         v-if="showEditor" 
@@ -1097,6 +1124,49 @@ onUnmounted(() => {
     <div class="watermark">
       <div class="watermark-left">自制IOT物联网显示面板 | {{ APP_VERSION }}</div>
       <div class="watermark-right">By—雪菱(mio-kitten)</div>
+    </div>
+
+    <ExportModal
+      v-if="showExportModal"
+      :projects="projects"
+      @export="handleExportConfirm"
+      @close="showExportModal = false"
+    />
+
+    <div v-if="noProjectAlert" class="modal-overlay" @click.self="noProjectAlert = false">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>提示</h2>
+          <button class="close-btn" @click="noProjectAlert = false">×</button>
+        </div>
+        <div class="modal-body">
+          <p style="text-align: center; font-size: 15px; color: #666;">当前没有任何项目，请先创建一个项目后再导出。</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="noProjectAlert = false">知道了</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="importDialog.show" class="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>{{ importDialog.message }}</h2>
+          <button class="close-btn" @click="importDialog.resolve?.(false)">×</button>
+        </div>
+        <div class="modal-body">
+          <p style="text-align: center; font-size: 16px; color: #333; white-space: pre-line; line-height: 1.6;">{{ importDialog.detail }}</p>
+        </div>
+        <div class="modal-footer">
+          <template v-if="importDialog.type === 'confirm'">
+            <button class="btn btn-secondary" @click="importDialog.resolve?.(false)">取消</button>
+            <button class="btn btn-primary" @click="importDialog.resolve?.(true)">覆盖</button>
+          </template>
+          <template v-else>
+            <button class="btn btn-secondary" @click="importDialog.resolve?.(false)">知道了</button>
+          </template>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -1192,5 +1262,86 @@ onUnmounted(() => {
 .watermark-right {
   font-size: 12px;
   color: #c0c0c0;
+}
+
+/* 无项目提示弹窗 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 12px;
+  width: 420px;
+  max-width: 90vw;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #999;
+  padding: 0 4px;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid #eee;
+}
+
+.btn {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-secondary {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.btn-secondary:hover {
+  background: #e0e0e0;
 }
 </style>
