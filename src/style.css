@@ -83,7 +83,7 @@ html, body {
 }
 
 .sidebar-left .component-group {
-  flex: 1;
+  flex: 0 0 auto;
   overflow-y: auto;
 }
 
@@ -164,6 +164,11 @@ html, body {
 .btn-danger {
   background-color: #ef5350;
   color: #fff;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.btn-danger:active {
+  transform: scale(0.88);
 }
 
 .btn-secondary {
@@ -177,11 +182,11 @@ html, body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 99999;
 }
 
 .modal-content {
@@ -282,6 +287,34 @@ html, body {
   overflow: hidden;
   cursor: move;
   --widget-bg: #ffffff;
+  animation: widgetAppear 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes widgetAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes widgetDisappear {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
+.widget-removing {
+  animation: widgetDisappear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  pointer-events: none;
 }
 
 .widget-header {
@@ -299,6 +332,10 @@ html, body {
   color: #444;
 }
 
+.widget-title-placeholder {
+  flex: 1;
+}
+
 .widget-content {
   padding: 12px;
   height: calc(100% - 40px);
@@ -309,6 +346,38 @@ html, body {
 .widget.selected {
   border-color: #5c9ce6;
   box-shadow: 0 0 0 2px rgba(92, 156, 230, 0.2);
+}
+
+.widget.transparent {
+  border-color: transparent;
+  box-shadow: none;
+  background: transparent;
+}
+
+.widget.transparent .widget-content {
+  background: transparent;
+}
+
+.widget.transparent .widget-header {
+  background: transparent;
+  border-bottom-color: transparent;
+}
+
+.fullscreen-mode .widget.transparent.switch-type .widget-header,
+.fullscreen-mode .widget.transparent.button-type .widget-header,
+.fullscreen-mode .widget.center-title-fullscreen .widget-header {
+  justify-content: center;
+}
+
+.fullscreen-mode .widget.center-title-fullscreen .widget-header h3 {
+  flex: 1;
+  text-align: center;
+}
+
+.widget.transparent.line-chart-type .widget-content,
+.widget.transparent.bar-chart-type .widget-content,
+.widget.transparent.mini-area-type .widget-content {
+  background: #ffffff;
 }
 
 .connection-status {
@@ -427,4 +496,61 @@ input:focus,
 select:focus {
   outline: none;
   border-color: #5c9ce6;
+}
+
+/* 模态框动画 */
+.modal-overlay {
+  animation: modalFadeIn 0.3s ease;
+}
+
+.modal-overlay.closing {
+  animation: modalFadeOut 0.2s ease forwards;
+}
+
+.modal-content {
+  animation: modalSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-overlay.closing .modal-content {
+  animation: modalSlideOut 0.2s ease forwards;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modalSlideOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
 }

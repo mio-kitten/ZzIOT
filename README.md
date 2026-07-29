@@ -2,7 +2,7 @@
 
 # 自制IOT物联网显示面板（iot-visualization）
 
-[![version](https://img.shields.io/badge/version-v2.1.0-blue)](https://github.com/mio-kitten/iot-visualization)
+[![version](https://img.shields.io/badge/version-v2.2.0-blue)](https://github.com/mio-kitten/iot-visualization)
 [![platform](https://img.shields.io/badge/platform-Windows%2010%2B-green)](https://github.com/mio-kitten/iot-visualization)
 [![tech](https://img.shields.io/badge/tech-Vue%203-orange)](https://vuejs.org/)
 [![tech](https://img.shields.io/badge/tech-Electron%2028+-purple)](https://www.electronjs.org/)
@@ -20,9 +20,9 @@
 | --- | --- |
 | **所用技术栈** | Vue 3、Electron 28+、TypeScript、Chart.js、MQTT.js、Vite |
 | **已支持的平台** | Windows 10 及以上X64 |
-| **组件数量** | 9 个 |
+| **组件数量** | 11 个 |
 | **状态** | 开发中 |
-|**版本** | V2.1.0 | 
+|**版本** | V2.2.0 | 
 
 ---
 
@@ -68,26 +68,28 @@ _请注意仔细阅读文件里的 **使用说明** 和程序运行时 **网页�
    - 直接下载本项目所有文件并放在任意文件夹
    - 点击 `检查安装依赖.bat`，程序会自动检查本机使用架构并调用文件夹中对应的 Node.js 安装包进行安装
    - 如果安装失败，按照本机系统的架构选择运行 `node-v24.18.0-x64.msi` 或 `node-v24.18.0-arm64.msi` 安装包
-   - 安装完成后，不要再点击"检查安装依赖"，直接运行 `一键启动.bat`
+   - 安装完成后，不要再点击"检查安装依赖"，根据需求运行`启动可视化面板.bat`或`启动内网服务.bat`
 
 **3.** 环境要求：
    - 本项目基于 Vue 与 Node.js 开发，需要网页环境支持
    - 因为 Node.js v24 需要 Windows 10 或更高版本且无 X86 版本的安装包（32位），本项目理应只支持 Windows 10 及以上 X64 版本
 
-**4.** 组件支持：能力有限，目前仅实现了 9 个组件：
+**4.** 组件支持：能力有限，目前仅实现了 11 个组件：
    - BarChartWidget（柱状图）
    - ButtonWidget（按钮）
+   - DecorativeTextWidget（文本）
    - InputWidget（输入框）
    - LineChartWidget（折线图）
    - MiniAreaWidget（迷你面积图）
+   - RadioWidget（单选框）
    - SliderWidget（滑动条）
    - SwitchWidget（开关）
-   - TextWidget（文本）
+   - TextWidget（单行文字）
    - TextareaWidget（多行文本）
 
 ### 编辑界面
 
-![编辑界面](screenshot-1781793224435.png)
+![编辑界面](屏幕截图_29-7-2026_152217_localhost.jpeg)
 
 ### 数据管理界面
 
@@ -121,9 +123,9 @@ npm run electron:build
 
 #### 或
 
-### 用123云盘下载（V2.1.0）：
+### 用123云盘下载（V2.2.0）：
 
-[网盘链接（注意流量限制 7Z包体400mb+）](https://1842972489.share.123pan.cn/123pan/SJqUTd-Do6l3)
+[网盘链接（注意流量限制 rar包体80.7 MB）](https://1842972489.share.123pan.cn/123pan/SJqUTd-Do6l3)
 > 提取码：NOTH
 
 ---

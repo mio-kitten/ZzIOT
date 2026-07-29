@@ -30,14 +30,15 @@ const {
   createProject,
   updateProject,
   deleteProject,
+  reorderProjects,
   setCurrentProject,
   addWidget,
   updateWidget,
   removeWidget,
   savePlatformConfig,
   loadPlatformConfig,
-  exportProject,
-  importProjects,
+  exportProjects,
+  importMultipleProjects,
   importDialog,
   createWidget
 } = useProject()
@@ -93,6 +94,8 @@ const handleFullscreenChange = () => {
     isFullscreen.value = false
     // 安全退出：清除选中组件、确保回到编辑界面
     selectedWidgetId.value = null
+    // 关闭内网服务弹窗
+    showNetworkConfig.value = false
   }
 }
 
@@ -100,6 +103,8 @@ document.addEventListener('fullscreenchange', handleFullscreenChange)
 
 /** 进入全屏前保存编辑模式的视口中心（画布坐标） */
 const savedViewCenter = ref<{ x: number; y: number } | null>(null)
+/** 进入全屏前保存编辑模式的滚动位置，退出时恢复 */
+const savedEditScrollPos = ref<{ left: number; top: number } | null>(null)
 
 /** 全屏（查看模式）时保持与编辑模式相同的视口中心 */
 watch(isFullscreen, async (val) => {
@@ -119,6 +124,8 @@ watch(isFullscreen, async (val) => {
       await nextTick()
       if (!scrollWrapperRef.value) return
     }
+    // 等待 DOM 更新（侧边栏隐藏等），确保 clientWidth/Height 为最终值
+    await nextTick()
     const wrap = scrollWrapperRef.value
     
     if (savedViewCenter.value) {
@@ -134,14 +141,14 @@ watch(isFullscreen, async (val) => {
       wrap.scrollTop = Math.max(0, canvasCenterY - wrap.clientHeight / 2)
     }
   } else if (!val && scrollWrapperRef.value) {
-    // 退出全屏回到编辑模式：向右下方移动一段距离
+    // 退出全屏回到编辑模式：恢复进入前的滚动位置
     await nextTick()
     const wrap = scrollWrapperRef.value
-    wrap.scrollTo({
-      left: wrap.scrollLeft + 200,
-      top: wrap.scrollTop + 150,
-      behavior: 'smooth'
-    })
+    if (savedEditScrollPos.value) {
+      wrap.scrollLeft = savedEditScrollPos.value.left
+      wrap.scrollTop = savedEditScrollPos.value.top
+      savedEditScrollPos.value = null
+    }
   }
 })
 
@@ -664,6 +671,11 @@ const handleRemoveWidget = async (widgetId: string) => {
   delete widgetData[widgetId]
 }
 
+const handleUpdateWidgetSize = async (widgetId: string, width: number, height: number) => {
+  if (!currentProjectId.value) return
+  await updateWidget(currentProjectId.value, widgetId, { width, height })
+}
+
 const handleSidebarUpdate = (updates: Record<string, unknown>) => {
   if (selectedWidgetId.value) {
     handleUpdateWidget(selectedWidgetId.value, updates)
@@ -774,6 +786,14 @@ const handleDeleteProject = (projectId: string) => {
   }
 }
 
+const handleRenameProject = (projectId: string, newName: string) => {
+  updateProject(projectId, { name: newName })
+}
+
+const handleReorderProjects = (fromIndex: number, toIndex: number) => {
+  reorderProjects(fromIndex, toIndex)
+}
+
 const handleOpenProjectManager = () => {
   if (isFullscreen.value) {
     if (document.fullscreenElement) {
@@ -799,17 +819,18 @@ const handleExportProjects = () => {
   showExportModal.value = true
 }
 
-const handleExportConfirm = async (project: Project, method: 'manual' | 'auto') => {
+const handleExportConfirm = async (projects: Project[]) => {
   showExportModal.value = false
-  await exportProject(project, method)
+  await exportProjects(projects)
 }
 
-const handleImportProjects = (file: File) => {
-  importProjects(file)
+const handleImportProjects = async (files: FileList) => {
+  await importMultipleProjects(files)
 }
 
 const handleOpenIoTService = () => {
   showNetworkConfig.value = true
+  console.log('handleOpenIoTService called, showNetworkConfig:', showNetworkConfig.value)
 }
 
 const handleCloseIoTService = () => {
@@ -820,12 +841,16 @@ provide('openNetworkConfig', handleOpenIoTService)
 
 const toggleFullscreen = () => {
   if (!isFullscreen.value) {
-    // 进入全屏前：保存编辑模式的视口中心（画布坐标）
+    // 进入全屏前：保存编辑模式的视口中心（画布坐标）和滚动位置
     const wrap = scrollWrapperRef.value
     if (wrap) {
       savedViewCenter.value = {
         x: wrap.scrollLeft + wrap.clientWidth / 2,
         y: wrap.scrollTop + wrap.clientHeight / 2
+      }
+      savedEditScrollPos.value = {
+        left: wrap.scrollLeft,
+        top: wrap.scrollTop
       }
     }
     
@@ -985,9 +1010,9 @@ watch(() => currentProjectId.value, async (newId, oldId) => {
   }
 })
 
-watch(() => currentProject.value?.widgets, () => {
+watch(() => currentProject.value?.widgets?.length, () => {
   updateSubscriptions()
-}, { deep: true })
+})
 
 provide('mqttClient', mqttClient)
 provide('widgetData', widgetData)
@@ -1014,17 +1039,6 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <Teleport to="body">
-    <NetworkConfigModal
-      v-if="showNetworkConfig"
-      @close="handleCloseIoTService"
-    />
-    <CmdWarningModal
-      v-if="showCmdWarning"
-      @close="showCmdWarning = false"
-    />
-  </Teleport>
-
   <div 
     class="app-container" 
     :class="{ 'fullscreen-mode': isFullscreen }"
@@ -1045,7 +1059,7 @@ onUnmounted(() => {
       @open-project-manager="handleOpenProjectManager"
       @select-project="handleSelectProject"
       @scroll-to-center="handleScrollToCenter"
-      @open-iot-service="handleOpenIoTService"
+      @openIoTService="handleOpenIoTService"
     />
     
     <Header
@@ -1065,7 +1079,7 @@ onUnmounted(() => {
       @select-project="handleSelectProject"
       @scroll-to-center="handleScrollToCenter"
       @create-project="handleCreateProjectClick"
-      @open-iot-service="handleOpenIoTService"
+      @openIoTService="handleOpenIoTService"
       @export-projects="handleExportProjects"
       @import-projects="handleImportProjects"
     />
@@ -1077,6 +1091,16 @@ onUnmounted(() => {
       @cancel="showPlatformConfig = false"
     />
     
+    <NetworkConfigModal
+      v-if="showNetworkConfig"
+      @close="handleCloseIoTService"
+    />
+    
+    <CmdWarningModal
+      v-if="showCmdWarning"
+      @close="showCmdWarning = false"
+    />
+    
     <ProjectManager
       v-if="showProjectManager"
       :projects="projects"
@@ -1085,6 +1109,8 @@ onUnmounted(() => {
       @select="handleSelectProject"
       @view="handleViewProject"
       @delete="handleDeleteProject"
+      @rename="handleRenameProject"
+      @reorder="handleReorderProjects"
     />
 
     <div v-else class="panel-container">
@@ -1104,6 +1130,7 @@ onUnmounted(() => {
           @add-widget="handleAddWidget"
           @update-widget="handleUpdateWidget"
           @remove-widget="handleRemoveWidget"
+          @update-widget-size="handleUpdateWidgetSize"
         />
       </div>
       
@@ -1148,7 +1175,7 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div v-if="importDialog.show" class="modal-overlay">
+    <div v-if="importDialog.show" class="modal-overlay" :class="{ 'modal-closing': importDialog.closing }">
       <div class="modal-content">
         <div class="modal-header">
           <h2>{{ importDialog.message }}</h2>
@@ -1276,6 +1303,12 @@ onUnmounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+.modal-overlay.modal-closing {
+  opacity: 0;
 }
 
 .modal-content {
@@ -1285,6 +1318,14 @@ onUnmounted(() => {
   max-width: 90vw;
   overflow: hidden;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  transform: scale(1);
+  opacity: 1;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.modal-closing .modal-content {
+  transform: scale(0.95);
+  opacity: 0;
 }
 
 .modal-header {

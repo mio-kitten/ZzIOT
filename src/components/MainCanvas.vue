@@ -15,6 +15,8 @@ import SliderWidget from './widgets/SliderWidget.vue'
 import TextWidget from './widgets/TextWidget.vue'
 import MiniAreaWidget from './widgets/MiniAreaWidget.vue'
 import InputWidget from './widgets/InputWidget.vue'
+import RadioWidget from './widgets/RadioWidget.vue'
+import DecorativeTextWidget from './widgets/DecorativeTextWidget.vue'
 
 const props = defineProps<{
   widgets: Widget[]
@@ -29,6 +31,7 @@ const emit = defineEmits<{
   addWidget: [type: string, x: number, y: number]
   updateWidget: [id: string, updates: Record<string, unknown>]
   removeWidget: [id: string]
+  updateWidgetSize: [id: string, width: number, height: number]
 }>()
 
 const isDragging = ref(false)
@@ -36,24 +39,65 @@ const dragOffset = ref({ x: 0, y: 0 })
 const draggingWidgetId = ref<string | null>(null)
 const canvasRef = ref<HTMLElement | null>(null)
 
+const isNativeDrag = ref(false)
+
+const removingWidgetIds = ref<Set<string>>(new Set())
+
 const isResizing = ref(false)
 const resizingWidgetId = ref<string | null>(null)
 const resizeStartSize = ref({ width: 0, height: 0 })
 const resizeStartPos = ref({ x: 0, y: 0 })
 
 const getWidgetStyle = (widget: Widget) => {
-  const config = widget.config as { x: number; y: number; width: number; height: number; transparent?: boolean }
+  const config = widget.config as { x: number; y: number; width: number; height: number; transparent?: boolean; hideMode?: string }
+  const isTransparent = config.transparent === true || 
+    (widget.type === 'decorativeText' && (config.hideMode === 'bg' || config.hideMode === 'bgAndTitle'))
   return {
     left: `${config.x}px`,
     top: `${config.y}px`,
     width: `${config.width}px`,
     height: `${config.height}px`,
-    '--widget-bg': config.transparent ? 'transparent' : '#ffffff'
+    '--widget-bg': isTransparent ? 'transparent' : '#ffffff'
   }
 }
 
 const getWidgetTitle = (widget: Widget) => {
   return (widget.config as { title: string }).title
+}
+
+const isWidgetTransparent = (widget: Widget) => {
+  const config = widget.config as { transparent?: boolean; hideMode?: string }
+  return config.transparent === true || 
+    (widget.type === 'decorativeText' && (config.hideMode === 'bg' || config.hideMode === 'bgAndTitle'))
+}
+
+const shouldShowTitle = (widget: Widget) => {
+  const config = widget.config as { transparent?: boolean; hideMode?: string }
+  if (props.showControls) {
+    if (widget.type === 'decorativeText') {
+      const hideMode = config.hideMode || 'none'
+      return hideMode !== 'title' && hideMode !== 'bgAndTitle'
+    }
+    return true
+  } else {
+    if (widget.type === 'decorativeText') {
+      const hideMode = config.hideMode || 'none'
+      if (hideMode === 'title' || hideMode === 'bgAndTitle') {
+        return false
+      }
+      return true
+    }
+    return !config.transparent || widget.type === 'switch' || widget.type === 'button'
+  }
+}
+
+const shouldCenterTitleFullscreen = (widget: Widget) => {
+  if (props.showControls) return false
+  if (widget.type === 'decorativeText') {
+    const hideMode = (widget.config as { hideMode?: string }).hideMode || 'none'
+    return hideMode === 'bg'
+  }
+  return isWidgetTransparent(widget) && (widget.type === 'switch' || widget.type === 'button')
 }
 
 const getWidgetConfig = (widget: Widget) => {
@@ -88,10 +132,13 @@ const handleCanvasClick = () => {
 const handleDragOver = (e: DragEvent) => {
   e.preventDefault()
   e.dataTransfer!.dropEffect = 'copy'
+  isNativeDrag.value = true
 }
 
 const handleDrop = (e: DragEvent) => {
   e.preventDefault()
+  e.stopPropagation()
+  isNativeDrag.value = false
   const widgetType = e.dataTransfer?.getData('widgetType')
   if (!widgetType) return
   
@@ -108,7 +155,18 @@ const handleWidgetClick = (e: MouseEvent, widgetId: string) => {
   emit('selectWidget', widgetId)
 }
 
+const handleDeleteWidget = (widgetId: string) => {
+  const next = new Set(removingWidgetIds.value)
+  next.add(widgetId)
+  removingWidgetIds.value = next
+  setTimeout(() => {
+    emit('removeWidget', widgetId)
+  }, 300)
+}
+
 const handleDragStart = (e: MouseEvent, widgetId: string) => {
+  if (isNativeDrag.value) return
+  
   e.stopPropagation()
   emit('selectWidget', widgetId)
   
@@ -153,9 +211,9 @@ const handleResizeStart = (e: MouseEvent, widgetId: string) => {
 
 const handleMouseMove = (e: MouseEvent) => {
   if (!canvasRef.value) return
-  const canvasRect = canvasRef.value.getBoundingClientRect()
   
   if (isDragging.value && draggingWidgetId.value) {
+    const canvasRect = canvasRef.value.getBoundingClientRect()
     const x = e.clientX - canvasRect.left - dragOffset.value.x
     const y = e.clientY - canvasRect.top - dragOffset.value.y
     
@@ -166,6 +224,7 @@ const handleMouseMove = (e: MouseEvent) => {
   }
   
   if (isResizing.value && resizingWidgetId.value) {
+    const canvasRect = canvasRef.value.getBoundingClientRect()
     const deltaX = e.clientX - resizeStartPos.value.x
     const deltaY = e.clientY - resizeStartPos.value.y
     
@@ -216,6 +275,7 @@ onUnmounted(() => {
     class="main-canvas"
     @click="handleCanvasClick"
     @dragover="handleDragOver"
+    @dragleave="isNativeDrag = false"
     @drop="handleDrop"
   >
     <!-- 画布正中央淡灰色十字架 -->
@@ -227,18 +287,35 @@ onUnmounted(() => {
       v-for="widget in widgets"
       :key="widget.id"
       class="widget"
-      :class="{ selected: props.showControls && widget.id === selectedWidgetId }"
+      :class="{
+        'widget-removing': removingWidgetIds.has(widget.id),
+        selected: props.showControls && widget.id === selectedWidgetId,
+        'radio-type': widget.type === 'radio',
+        'button-type': widget.type === 'button',
+        'switch-type': widget.type === 'switch',
+        'slider-type': widget.type === 'slider',
+        'input-type': widget.type === 'input',
+        'text-type': widget.type === 'text',
+        'textarea-type': widget.type === 'textarea',
+        'line-chart-type': widget.type === 'lineChart',
+        'bar-chart-type': widget.type === 'barChart',
+        'mini-area-type': widget.type === 'miniArea',
+        'decorative-text-type': widget.type === 'decorativeText',
+        transparent: isWidgetTransparent(widget),
+        'center-title-fullscreen': shouldCenterTitleFullscreen(widget)
+      }"
       :style="getWidgetStyle(widget)"
       @click="handleWidgetClick($event, widget.id)"
       @mousedown="handleDragStart($event, widget.id)"
     >
       <div class="widget-header">
-        <h3>{{ getWidgetTitle(widget) }}</h3>
+        <h3 v-if="shouldShowTitle(widget)">{{ getWidgetTitle(widget) }}</h3>
+        <span v-else class="widget-title-placeholder"></span>
         <button
           v-if="props.showControls"
           class="btn btn-danger btn-sm"
           style="padding: 2px 8px; font-size: 12px;"
-          @click.stop="emit('removeWidget', widget.id)"
+          @click.stop="handleDeleteWidget(widget.id)"
         >
           删除
         </button>
@@ -282,9 +359,19 @@ onUnmounted(() => {
           v-else-if="widget.type === 'input'"
           :config="widget.config"
         />
+        <RadioWidget
+          v-else-if="widget.type === 'radio'"
+          :config="widget.config"
+          :data="widgetData[widget.id] || {}"
+          @resize="(width, height) => emit('updateWidgetSize', widget.id, width, height)"
+        />
+        <DecorativeTextWidget
+          v-else-if="widget.type === 'decorativeText'"
+          :config="widget.config as any"
+        />
       </div>
       <div 
-        v-if="props.showControls"
+        v-if="props.showControls && widget.type !== 'radio'"
         class="widget-resize-handle"
         @mousedown="handleResizeStart($event, widget.id)"
       ></div>
@@ -311,6 +398,10 @@ onUnmounted(() => {
   z-index: 2;
   border-color: #5c9ce6;
   box-shadow: 0 0 0 2px rgba(92, 156, 230, 0.2);
+}
+
+.widget.radio-type :deep(.widget-content) {
+  padding: 8px;
 }
 
 .widget-resize-handle {

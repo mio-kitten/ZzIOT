@@ -44,7 +44,7 @@ const createChart = () => {
   const data = displayData.value
   
   const datasets = [{
-    label: props.config.title || '数据',
+    label: props.config.labelText || '数据',
     data: data.map(v => v.value),
     backgroundColor: barColor,
     borderColor: barColor,
@@ -176,6 +176,13 @@ watch(() => props.data, () => {
   updateChart()
 }, { deep: true, immediate: true })
 
+watch(() => props.config.labelText, () => {
+  if (chartInstance) {
+    chartInstance.data.datasets[0].label = props.config.labelText || '数据'
+    chartInstance.update()
+  }
+})
+
 onMounted(() => {
   nextTick(() => {
     createChart()
@@ -201,7 +208,6 @@ onUnmounted(() => {
 <template>
   <div class="bar-chart-container">
     <div class="chart-header">
-      <span class="label-text">{{ config.title || '数据' }}</span>
       <div class="current-value">
         <span class="value">{{ typeof currentValue === 'number' ? currentValue.toFixed(1) : currentValue }}</span>
         <span class="unit">{{ config.yAxisUnit || '' }}</span>
@@ -223,15 +229,9 @@ onUnmounted(() => {
 
 .chart-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: flex-start;
   margin-bottom: 8px;
-}
-
-.label-text {
-  font-size: 13px;
-  color: #666;
-  font-weight: 500;
 }
 
 .current-value {

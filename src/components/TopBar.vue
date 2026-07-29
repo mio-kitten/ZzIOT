@@ -196,12 +196,16 @@ const handleChangeProject = (e: Event) => {
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
-  transition: all 0.2s;
+  transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
   font-weight: 500;
 }
 
 .btn:hover {
   opacity: 0.88;
+}
+
+.btn:active {
+  transform: scale(0.93);
 }
 
 .btn-success {

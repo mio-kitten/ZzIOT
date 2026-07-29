@@ -1,6 +1,6 @@
 {
   "name": "iot-visualization",
-  "version": "2.0.1",
+  "version": "2.2.0",
   "description": "自制IOT物联网显示面板",
   "scripts": {
     "dev": "vite",

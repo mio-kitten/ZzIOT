@@ -2,8 +2,25 @@
  * 命令窗口警告弹窗
  * 提醒用户不要关闭后台运行的服务命令窗口，避免面板功能异常
  */
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const emit = defineEmits<{
+  close: []
+}>()
+
+const isClosing = ref(false)
+
+const handleClose = () => {
+  isClosing.value = true
+  setTimeout(() => {
+    emit('close')
+  }, 200)
+}
+</script>
+
 <template>
-  <div class="cmd-warning-overlay" @click.self="$emit('close')">
+  <div class="cmd-warning-overlay" :class="{ closing: isClosing }" @click.self="handleClose">
     <div class="cmd-warning-modal">
       <div class="warning-icon">⚠️</div>
       <div class="warning-title">请勿关闭系统命令窗口</div>
@@ -14,17 +31,11 @@
         <p>如果是内网的系统命令窗口，只需用手动打开（同上）即可，但是<strong>不用刷新页面</strong>。</p>
       </div>
       <div class="warning-footer">
-        <button class="warning-btn" @click="$emit('close')">我知道了</button>
+        <button class="warning-btn" @click="handleClose">我知道了</button>
       </div>
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-defineEmits<{
-  close: []
-}>()
-</script>
 
 <style scoped>
 .cmd-warning-overlay {
@@ -38,6 +49,11 @@ defineEmits<{
   align-items: center;
   justify-content: center;
   z-index: 99999;
+  animation: cmdFadeIn 0.3s ease;
+}
+
+.cmd-warning-overlay.closing {
+  animation: cmdFadeOut 0.2s ease forwards;
 }
 
 .cmd-warning-modal {
@@ -49,6 +65,43 @@ defineEmits<{
   width: 90%;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   text-align: center;
+  animation: cmdSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.cmd-warning-overlay.closing .cmd-warning-modal {
+  animation: cmdSlideOut 0.2s ease forwards;
+}
+
+@keyframes cmdFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes cmdFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes cmdSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes cmdSlideOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
 }
 
 .warning-icon {
@@ -91,10 +144,14 @@ defineEmits<{
   font-size: 14px;
   cursor: pointer;
   font-weight: 600;
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .warning-btn:hover {
   background: #fa8c16;
+}
+
+.warning-btn:active {
+  transform: scale(0.93);
 }
 </style>

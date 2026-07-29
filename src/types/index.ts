@@ -44,7 +44,7 @@ export interface LineChartWidgetConfig {
 
 export interface Widget {
   id: string
-  type: 'lineChart' | 'barChart' | 'text' | 'miniArea' | 'button' | 'switch' | 'slider' | 'input' | 'textarea'
+  type: 'lineChart' | 'barChart' | 'text' | 'miniArea' | 'button' | 'switch' | 'slider' | 'input' | 'textarea' | 'radio' | 'decorativeText'
   config: LineChartWidgetConfig | Record<string, unknown>
 }
 

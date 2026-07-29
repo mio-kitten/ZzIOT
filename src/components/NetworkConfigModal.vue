@@ -9,6 +9,15 @@ const emit = defineEmits<{
   close: []
 }>()
 
+const isClosing = ref(false)
+
+const handleClose = () => {
+  isClosing.value = true
+  setTimeout(() => {
+    emit('close')
+  }, 200)
+}
+
 const ip = ref('127.0.0.1')
 const esp32IP = ref('127.0.0.1')
 const webPort = ref(8080)
@@ -101,11 +110,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="modal-overlay" @click.self="emit('close')">
+  <div class="modal-overlay" :class="{ closing: isClosing }" @click.self="handleClose">
     <div class="modal-content">
       <div class="modal-header">
         <h2>内网服务配置</h2>
-        <button class="close-btn" @click="emit('close')">×</button>
+        <button class="close-btn" @click="handleClose">×</button>
       </div>
 
       <div class="modal-body">
@@ -210,7 +219,7 @@ onUnmounted(() => {
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-secondary" @click="emit('close')">关闭</button>
+        <button class="btn btn-secondary" @click="handleClose">关闭</button>
         <button
           class="btn"
           :class="brokerRunning ? 'btn-danger' : 'btn-success'"
@@ -241,10 +250,16 @@ onUnmounted(() => {
 .modal-content {
   background: #fff;
   border-radius: 12px;
-  width: 440px;
+  width: 560px;
   max-height: 85vh;
   overflow-y: auto;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.modal-content::-webkit-scrollbar {
+  display: none;
 }
 
 .modal-header {
@@ -418,12 +433,14 @@ onUnmounted(() => {
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  transition: all 0.2s;
+  transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .btn:hover:not(:disabled) { opacity: 0.88; }
+
+.btn:active:not(:disabled) { transform: scale(0.93); }
 
 .btn-secondary {
   background: #f0f0f0;

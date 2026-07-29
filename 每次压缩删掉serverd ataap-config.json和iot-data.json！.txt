@@ -1,1 +1,0 @@
-每次压缩删掉serverd -- ataap-config.json和iot-data.json！

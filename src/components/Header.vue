@@ -3,7 +3,7 @@
  * 显示应用标题、连接状态、项目选择器、全屏/项目管理按钮
  */
 <script setup lang="ts">
-import { ref, computed, inject } from 'vue'
+import { ref, computed } from 'vue'
 
 const props = defineProps<{
   isConnected: boolean
@@ -26,7 +26,7 @@ const emit = defineEmits<{
   createProject: []
   openIoTService: []
   exportProjects: []
-  importProjects: [file: File]
+  importProjects: [files: FileList]
 }>()
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -41,14 +41,14 @@ const handleImportClick = () => {
 
 const handleFileChange = (e: Event) => {
   const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (file) {
-    emit('importProjects', file)
+  const files = input.files
+  if (files && files.length > 0) {
+    emit('importProjects', files)
   }
   input.value = ''
 }
 
-const openNetworkConfig = inject<() => void>('openNetworkConfig', () => {})
+
 
 const handleChangeProject = (e: Event) => {
   const projectId = (e.target as HTMLSelectElement).value
@@ -84,17 +84,18 @@ const headerTitle = computed(() => {
         ref="fileInputRef"
         type="file"
         accept=".json"
+        multiple
         style="display: none"
         @change="handleFileChange"
       />
-      <button v-if="!showProjectSelector" class="btn btn-secondary" @click="openNetworkConfig()" style="margin-right: 12px;">
+      <button v-if="!showProjectSelector" class="btn btn-secondary" @click="emit('openIoTService')" style="margin-right: 12px;">
         内网服务
       </button>
       <select v-if="showProjectSelector" :value="projectId" class="project-select" :disabled="switchCooldown" @change="handleChangeProject" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px;">
         <option v-if="projects.length === 0" value="">未选择项目</option>
         <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option>
       </select>
-      <button v-if="showProjectSelector" class="btn btn-secondary" @click="openNetworkConfig()" style="margin-left: 12px;">
+      <button v-if="showProjectSelector" class="btn btn-secondary" @click="emit('openIoTService')" style="margin-left: 12px;">
         内网服务
       </button>
     </div>
@@ -178,12 +179,16 @@ const headerTitle = computed(() => {
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
-  transition: all 0.2s;
+  transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
   font-weight: 500;
 }
 
 .btn:hover {
   opacity: 0.88;
+}
+
+.btn:active {
+  transform: scale(0.93);
 }
 
 .connection-status {

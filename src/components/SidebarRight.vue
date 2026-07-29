@@ -105,6 +105,7 @@ const sliderConfig = computed(() => {
   return props.widget.config as {
     title: string;
     width: number;
+    height: number;
     minValue: number;
     maxValue: number;
     step: number;
@@ -254,6 +255,7 @@ const barChartConfig = computed(() => {
     yAxisUnit: string;
     topic: string;
     color: string;
+    labelText?: string;
   };
 });
 
@@ -287,6 +289,77 @@ const handleUpdateLabelText = (value: string) => {
 const handleUpdateUnit = (value: string) => {
   emit('update', { unit: value });
 };
+
+const radioConfig = computed(() => {
+  if (!props.widget || props.widget.type !== 'radio')
+    return null;
+  return props.widget.config as {
+    title: string;
+    width: number;
+    height: number;
+    topic: string;
+    orientation?: 'horizontal' | 'vertical';
+    options: { label: string; value: string }[];
+  };
+});
+
+const decorativeTextConfig = computed(() => {
+  if (!props.widget || props.widget.type !== 'decorativeText')
+    return null;
+  return props.widget.config as {
+    title: string;
+    width: number;
+    height: number;
+    content: string;
+    textColor: string;
+    fontSize: number;
+    fontWeight: 'normal' | 'bold';
+    hideMode: 'none' | 'title' | 'bg' | 'bgAndTitle';
+  };
+});
+
+const handleUpdateContent = (value: string) => {
+  emit('update', { content: value });
+};
+
+const handleUpdateFontSize = (value: number) => {
+  emit('update', { fontSize: value });
+};
+
+const handleUpdateFontWeight = (value: 'normal' | 'bold') => {
+  emit('update', { fontWeight: value });
+};
+
+const handleUpdateHideMode = (value: string) => {
+  emit('update', { hideMode: value as 'none' | 'title' | 'bg' | 'bgAndTitle' });
+};
+
+const hexToRgb = (hex: string): string => {
+  const cleanHex = hex.replace('#', '');
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+  return `R:${r} G:${g} B:${b}`;
+};
+
+const handleUpdateRadioOption = (index: number, field: 'label' | 'value', value: string) => {
+  const options = [...(radioConfig.value?.options || [])];
+  options[index] = { ...options[index], [field]: value };
+  emit('update', { options });
+};
+
+const handleAddRadioOption = () => {
+  const options = [...(radioConfig.value?.options || [])];
+  options.push({ label: `选项${options.length + 1}`, value: String(options.length + 1) });
+  emit('update', { options });
+};
+
+const handleRemoveRadioOption = (index: number) => {
+  const options = radioConfig.value?.options || [];
+  if (options.length <= 1) return;
+  const newOptions = options.filter((_, i) => i !== index);
+  emit('update', { options: newOptions });
+};
 </script>
 
 <template>
@@ -309,7 +382,37 @@ const handleUpdateUnit = (value: string) => {
           />
         </div>
         
-        <div v-if="widget.type !== 'input' && (widget.type !== 'lineChart' || lineChartConfig?.displayMode === 'singleTopic') && widget.type !== 'textarea'" class="config-item">
+        <div v-if="widget.type === 'radio'" class="config-item">
+          <label>排列方向</label>
+          <div class="orientation-toggle">
+            <button
+              class="orientation-btn"
+              :class="{ active: radioConfig?.orientation !== 'vertical' }"
+              @click="emit('update', { orientation: 'horizontal' })"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="6" width="18" height="12" rx="2"/>
+                <line x1="8" y1="10" x2="8" y2="14"/>
+                <line x1="16" y1="10" x2="16" y2="14"/>
+              </svg>
+              横向
+            </button>
+            <button
+              class="orientation-btn"
+              :class="{ active: radioConfig?.orientation === 'vertical' }"
+              @click="emit('update', { orientation: 'vertical' })"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="6" y="3" width="12" height="18" rx="2"/>
+                <line x1="10" y1="8" x2="14" y2="8"/>
+                <line x1="10" y1="16" x2="14" y2="16"/>
+              </svg>
+              竖向
+            </button>
+          </div>
+        </div>
+        
+        <div v-if="widget.type !== 'lineChart' && widget.type !== 'textarea' && widget.type !== 'decorativeText'" class="config-item">
           <label>Topic</label>
           <input
             :value="getTopic(widget.config)"
@@ -319,8 +422,28 @@ const handleUpdateUnit = (value: string) => {
             placeholder="请输入Topic名称"
           />
         </div>
+        <div v-if="widget.type === 'lineChart' && lineChartConfig?.displayMode === 'singleTopic'" class="config-item">
+          <label>Topic</label>
+          <input
+            :value="getTopic(widget.config)"
+            @input="emit('update', { topic: inputValue($event) })"
+            type="text"
+            class="config-input"
+            placeholder="请输入Topic名称"
+          />
+        </div>
+        <div v-if="widget.type === 'textarea' && textConfig?.displayMode === 'singleTopic'" class="config-item">
+          <label>Topic</label>
+          <input
+            :value="textConfig?.topic"
+            @input="emit('update', { topic: inputValue($event) })"
+            type="text"
+            class="config-input"
+            placeholder="请输入Topic名称"
+          />
+        </div>
         
-        <div class="config-item checkbox-item">
+        <div class="config-item checkbox-item" v-if="widget.type !== 'decorativeText'">
           <label>隐藏底色</label>
           <input 
             type="checkbox" 
@@ -329,16 +452,150 @@ const handleUpdateUnit = (value: string) => {
             @change="emit('update', { transparent: ($event.target as HTMLInputElement).checked })"
           />
         </div>
+
+        <div v-if="widget.type === 'decorativeText'" class="config-item">
+          <label>隐藏选项</label>
+          <div class="hide-mode-toggle">
+            <button
+              class="hide-mode-btn"
+              :class="{ active: decorativeTextConfig?.hideMode === 'none' || !decorativeTextConfig?.hideMode }"
+              @click="handleUpdateHideMode('none')"
+            >
+              不隐藏
+            </button>
+            <button
+              class="hide-mode-btn"
+              :class="{ active: decorativeTextConfig?.hideMode === 'title' }"
+              @click="handleUpdateHideMode('title')"
+            >
+              隐藏标题
+            </button>
+            <button
+              class="hide-mode-btn"
+              :class="{ active: decorativeTextConfig?.hideMode === 'bg' }"
+              @click="handleUpdateHideMode('bg')"
+            >
+              隐藏底色
+            </button>
+            <button
+              class="hide-mode-btn"
+              :class="{ active: decorativeTextConfig?.hideMode === 'bgAndTitle' }"
+              @click="handleUpdateHideMode('bgAndTitle')"
+            >
+              隐藏底色+标题
+            </button>
+          </div>
+        </div>
       </div>
 
-      <template v-if="widget.type === 'lineChart'">
+      <template v-if="widget.type === 'decorativeText'">
         <div class="config-section">
-          <div class="section-header">组件类型</div>
+          <div class="section-header">外观</div>
+          
           <div class="config-item">
-            <label class="label-value">折线图</label>
+            <label>组件宽度</label>
+            <input
+              :value="decorativeTextConfig?.width"
+              @input="handleUpdateWidth(Number(inputValue($event)))"
+              type="number"
+              class="config-input"
+            />
+          </div>
+          
+          <div class="config-item">
+            <label>组件高度</label>
+            <input
+              :value="decorativeTextConfig?.height"
+              @input="handleUpdateHeight(Number(inputValue($event)))"
+              type="number"
+              class="config-input"
+            />
+          </div>
+          
+          <div class="config-item">
+            <label>文字颜色</label>
+            <div class="color-picker-row">
+              <label class="theme-color-pick text-color-pick">
+                <input
+                  :value="decorativeTextConfig?.textColor"
+                  @input="handleUpdateTextColor(inputValue($event))"
+                  type="color"
+                />
+                <div
+                  class="theme-color"
+                  :style="{ backgroundColor: decorativeTextConfig?.textColor }"
+                ></div>
+              </label>
+              <span class="color-rgb-value">{{ hexToRgb(decorativeTextConfig?.textColor || '#333333') }}</span>
+            </div>
+          </div>
+
+          <div class="config-item">
+            <label>字体大小</label>
+            <input
+              :value="decorativeTextConfig?.fontSize"
+              @input="handleUpdateFontSize(Number(inputValue($event)))"
+              type="number"
+              min="12"
+              max="72"
+              class="config-input"
+            />
+          </div>
+
+          <div class="config-item">
+            <label>字体粗细</label>
+            <div class="orientation-toggle">
+              <button
+                class="orientation-btn"
+                :class="{ active: decorativeTextConfig?.fontWeight !== 'bold' }"
+                @click="handleUpdateFontWeight('normal')"
+              >
+                常规
+              </button>
+              <button
+                class="orientation-btn"
+                :class="{ active: decorativeTextConfig?.fontWeight === 'bold' }"
+                @click="handleUpdateFontWeight('bold')"
+              >
+                加粗
+              </button>
+            </div>
           </div>
         </div>
         
+        <div class="config-section">
+          <div class="section-header">内容</div>
+          
+          <div class="config-item">
+            <label>文本内容</label>
+            <textarea
+              :value="decorativeTextConfig?.content"
+              @input="handleUpdateContent(inputValue($event))"
+              class="config-input"
+              rows="4"
+              placeholder="请输入文本内容"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1e88e5" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 16v-4M12 8h.01"/>
+            </svg>
+            <span>隐藏选项说明</span>
+          </div>
+          <div class="info-content">
+            <p><b>不隐藏：</b>正常显示标题和底色</p>
+            <p><b>隐藏标题：</b>不显示标题内容</p>
+            <p><b>隐藏底色：</b>隐藏白色边框底色，全屏模式时标题显示并居中</p>
+            <p><b>隐藏底色+标题：</b>隐藏底色，全屏模式时标题也隐藏</p>
+          </div>
+        </div>
+      </template>
+
+      <template v-if="widget.type === 'lineChart'">
         <div class="config-section">
           <div class="section-header">外观</div>
           
@@ -420,19 +677,20 @@ const handleUpdateUnit = (value: string) => {
               class="theme-item"
             >
               <div class="theme-row">
-                <div class="theme-color" :style="{ backgroundColor: theme.color }"></div>
+                <label class="theme-color-pick">
+                  <input
+                    type="color"
+                    :value="theme.color"
+                    @input="handleUpdateTheme(index, { color: inputValue($event) })"
+                  />
+                  <div class="theme-color" :style="{ backgroundColor: theme.color }"></div>
+                </label>
                 <input
                   :value="theme.name"
                   @input="handleUpdateTheme(index, { name: inputValue($event) })"
                   type="text"
                   placeholder="折线名称"
                   class="theme-input"
-                />
-                <input
-                  :value="theme.color"
-                  @input="handleUpdateTheme(index, { color: inputValue($event) })"
-                  type="color"
-                  class="theme-color-input"
                 />
                 <button
                   v-if="lineChartConfig?.themes.length && lineChartConfig.themes.length > 1"
@@ -505,13 +763,6 @@ const handleUpdateUnit = (value: string) => {
 
       <template v-if="widget.type === 'barChart'">
         <div class="config-section">
-          <div class="section-header">组件类型</div>
-          <div class="config-item">
-            <label class="label-value">柱状图</label>
-          </div>
-        </div>
-        
-        <div class="config-section">
           <div class="section-header">外观</div>
           
           <div class="config-item">
@@ -540,20 +791,35 @@ const handleUpdateUnit = (value: string) => {
           
           <div class="config-item">
             <label>柱子颜色</label>
-            <div class="color-picker-wrap">
-              <input
-                :value="barChartConfig?.color"
-                @input="handleUpdateColor(inputValue($event))"
-                type="color"
-                class="color-input"
-              />
-              <span class="color-value">{{ barChartConfig?.color }}</span>
+            <div class="color-picker-row">
+              <label class="theme-color-pick text-color-pick">
+                <input
+                  :value="barChartConfig?.color"
+                  @input="handleUpdateColor(inputValue($event))"
+                  type="color"
+                />
+                <div
+                  class="theme-color"
+                  :style="{ backgroundColor: barChartConfig?.color }"
+                ></div>
+              </label>
+              <span class="color-rgb-value">{{ hexToRgb(barChartConfig?.color || '#5c9ce6') }}</span>
             </div>
           </div>
         </div>
         
         <div class="config-section">
           <div class="section-header">数据</div>
+          
+          <div class="config-item">
+            <label>标签文字</label>
+            <input
+              :value="barChartConfig?.labelText"
+              @input="handleUpdateLabelText(inputValue($event))"
+              type="text"
+              class="config-input"
+            />
+          </div>
           
           <div class="config-item">
             <label>纵轴单位</label>
@@ -615,13 +881,6 @@ const handleUpdateUnit = (value: string) => {
 
       <template v-if="widget.type === 'miniArea'">
         <div class="config-section">
-          <div class="section-header">组件类型</div>
-          <div class="config-item">
-            <label class="label-value">迷你面积图</label>
-          </div>
-        </div>
-        
-        <div class="config-section">
           <div class="section-header">外观</div>
           
           <div class="config-item">
@@ -650,14 +909,19 @@ const handleUpdateUnit = (value: string) => {
           
           <div class="config-item">
             <label>线条颜色</label>
-            <div class="color-picker-wrap">
-              <input
-                :value="miniAreaConfig?.color"
-                @input="handleUpdateColor(inputValue($event))"
-                type="color"
-                class="color-input"
-              />
-              <span class="color-value">{{ miniAreaConfig?.color }}</span>
+            <div class="color-picker-row">
+              <label class="theme-color-pick text-color-pick">
+                <input
+                  :value="miniAreaConfig?.color"
+                  @input="handleUpdateColor(inputValue($event))"
+                  type="color"
+                />
+                <div
+                  class="theme-color"
+                  :style="{ backgroundColor: miniAreaConfig?.color }"
+                ></div>
+              </label>
+              <span class="color-rgb-value">{{ hexToRgb(miniAreaConfig?.color || '#4caf50') }}</span>
             </div>
           </div>
         </div>
@@ -735,22 +999,30 @@ const handleUpdateUnit = (value: string) => {
 
       <template v-if="widget.type === 'button'">
         <div class="config-section">
-          <div class="section-header">组件类型</div>
-          <div class="config-item">
-            <label class="label-value">按钮</label>
-          </div>
-        </div>
-        
-        <div class="config-section">
           <div class="section-header">外观</div>
           
           <div class="config-item">
-            <label>组件大小</label>
-            <select class="config-input">
-              <option value="small">小</option>
-              <option value="medium" selected>中</option>
-              <option value="large">大</option>
-            </select>
+            <label>组件宽度</label>
+            <input
+              :value="buttonConfig?.width"
+              @input="handleUpdateWidth(Number(inputValue($event)))"
+              type="number"
+              min="80"
+              max="400"
+              class="config-input"
+            />
+          </div>
+          
+          <div class="config-item">
+            <label>组件高度</label>
+            <input
+              :value="buttonConfig?.height"
+              @input="handleUpdateHeight(Number(inputValue($event)))"
+              type="number"
+              min="80"
+              max="400"
+              class="config-input"
+            />
           </div>
         </div>
         
@@ -796,22 +1068,30 @@ const handleUpdateUnit = (value: string) => {
 
       <template v-if="widget.type === 'switch'">
         <div class="config-section">
-          <div class="section-header">组件类型</div>
-          <div class="config-item">
-            <label class="label-value">开关</label>
-          </div>
-        </div>
-        
-        <div class="config-section">
           <div class="section-header">外观</div>
           
           <div class="config-item">
-            <label>组件大小</label>
-            <select class="config-input">
-              <option value="small">小</option>
-              <option value="medium" selected>中</option>
-              <option value="large">大</option>
-            </select>
+            <label>组件宽度</label>
+            <input
+              :value="switchConfig?.width"
+              @input="handleUpdateWidth(Number(inputValue($event)))"
+              type="number"
+              min="80"
+              max="400"
+              class="config-input"
+            />
+          </div>
+          
+          <div class="config-item">
+            <label>组件高度</label>
+            <input
+              :value="switchConfig?.height"
+              @input="handleUpdateHeight(Number(inputValue($event)))"
+              type="number"
+              min="80"
+              max="400"
+              class="config-input"
+            />
           </div>
         </div>
         
@@ -882,13 +1162,6 @@ const handleUpdateUnit = (value: string) => {
 
       <template v-if="widget.type === 'slider'">
         <div class="config-section">
-          <div class="section-header">组件类型</div>
-          <div class="config-item">
-            <label class="label-value">滑动条</label>
-          </div>
-        </div>
-        
-        <div class="config-section">
           <div class="section-header">外观</div>
           
           <div class="config-item">
@@ -897,6 +1170,20 @@ const handleUpdateUnit = (value: string) => {
               :value="sliderConfig?.width"
               @input="handleUpdateWidth(Number(inputValue($event)))"
               type="number"
+              min="200"
+              max="600"
+              class="config-input"
+            />
+          </div>
+          
+          <div class="config-item">
+            <label>组件高度</label>
+            <input
+              :value="sliderConfig?.height"
+              @input="handleUpdateHeight(Number(inputValue($event)))"
+              type="number"
+              min="80"
+              max="200"
               class="config-input"
             />
           </div>
@@ -967,14 +1254,19 @@ const handleUpdateUnit = (value: string) => {
 
       <template v-if="widget.type === 'text'">
         <div class="config-section">
-          <div class="section-header">组件类型</div>
-          <div class="config-item">
-            <label class="label-value">单行文字</label>
-          </div>
-        </div>
-        
-        <div class="config-section">
           <div class="section-header">外观</div>
+          
+          <div class="config-item">
+            <label>组件宽度</label>
+            <input
+              :value="textConfig?.width"
+              @input="handleUpdateWidth(Number(inputValue($event)))"
+              type="number"
+              min="120"
+              max="600"
+              class="config-input"
+            />
+          </div>
           
           <div class="config-item">
             <label>组件高度</label>
@@ -990,18 +1282,23 @@ const handleUpdateUnit = (value: string) => {
           
           <div class="config-item">
             <label>文字颜色</label>
-            <div class="color-picker-wrap">
-              <input
-                :value="textConfig?.textColor"
-                @input="handleUpdateTextColor(inputValue($event))"
-                type="color"
-                class="color-input"
-              />
-              <span class="color-value">{{ textConfig?.textColor }}</span>
+            <div class="color-picker-row">
+              <label class="theme-color-pick text-color-pick">
+                <input
+                  :value="textConfig?.textColor"
+                  @input="handleUpdateTextColor(inputValue($event))"
+                  type="color"
+                />
+                <div
+                  class="theme-color"
+                  :style="{ backgroundColor: textConfig?.textColor }"
+                ></div>
+              </label>
+              <span class="color-rgb-value">{{ hexToRgb(textConfig?.textColor || '#333333') }}</span>
             </div>
           </div>
         </div>
-        
+
         <div class="info-section">
           <div class="info-header">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1e88e5" stroke-width="2">
@@ -1017,13 +1314,6 @@ const handleUpdateUnit = (value: string) => {
       </template>
 
       <template v-if="widget.type === 'textarea'">
-        <div class="config-section">
-          <div class="section-header">组件类型</div>
-          <div class="config-item">
-            <label class="label-value">多行文本</label>
-          </div>
-        </div>
-        
         <div class="config-section">
           <div class="section-header">外观</div>
           
@@ -1047,18 +1337,6 @@ const handleUpdateUnit = (value: string) => {
             />
           </div>
           
-          <div class="config-item">
-            <label>文字颜色</label>
-            <div class="color-picker-wrap">
-              <input
-                :value="textConfig?.textColor"
-                @input="handleUpdateTextColor(inputValue($event))"
-                type="color"
-                class="color-input"
-              />
-              <span class="color-value">{{ textConfig?.textColor }}</span>
-            </div>
-          </div>
         </div>
 
         <div class="config-section">
@@ -1076,20 +1354,6 @@ const handleUpdateUnit = (value: string) => {
           </div>
         </div>
         
-        <div v-if="textConfig?.displayMode === 'singleTopic'" class="config-section">
-          <div class="section-header">数据</div>
-          <div class="config-item">
-            <label>Topic</label>
-            <input
-              :value="textConfig?.topic"
-              @input="emit('update', { topic: inputValue($event) })"
-              type="text"
-              class="config-input"
-              placeholder="请输入Topic名称"
-            />
-          </div>
-        </div>
-        
         <div class="config-section">
           <div class="section-header">主题配置</div>
           <div class="theme-list">
@@ -1099,22 +1363,23 @@ const handleUpdateUnit = (value: string) => {
               class="theme-item"
             >
               <div class="theme-row">
-                <div
-                  class="theme-color"
-                  :style="{ backgroundColor: theme.color }"
-                ></div>
+                <label class="theme-color-pick">
+                  <input
+                    type="color"
+                    :value="theme.color"
+                    @input="handleUpdateTheme(index, { color: inputValue($event) })"
+                  />
+                  <div
+                    class="theme-color"
+                    :style="{ backgroundColor: theme.color }"
+                  ></div>
+                </label>
                 <input
                   :value="theme.name"
                   @input="handleUpdateTheme(index, { name: inputValue($event) })"
                   type="text"
                   placeholder="名称"
                   class="theme-input"
-                />
-                <input
-                  :value="theme.color"
-                  @input="handleUpdateTheme(index, { color: inputValue($event) })"
-                  type="color"
-                  class="theme-color-input"
                 />
                 <button
                   v-if="textConfig?.themes?.length && textConfig.themes.length > 1"
@@ -1189,13 +1454,6 @@ const handleUpdateUnit = (value: string) => {
 
       <template v-if="widget.type === 'input'">
         <div class="config-section">
-          <div class="section-header">组件类型</div>
-          <div class="config-item">
-            <label class="label-value">输入框</label>
-          </div>
-        </div>
-        
-        <div class="config-section">
           <div class="section-header">外观</div>
           
           <div class="config-item">
@@ -1204,6 +1462,20 @@ const handleUpdateUnit = (value: string) => {
               :value="inputConfig?.width"
               @input="handleUpdateWidth(Number(inputValue($event)))"
               type="number"
+              min="150"
+              max="600"
+              class="config-input"
+            />
+          </div>
+          
+          <div class="config-item">
+            <label>组件高度</label>
+            <input
+              :value="inputConfig?.height"
+              @input="handleUpdateHeight(Number(inputValue($event)))"
+              type="number"
+              min="60"
+              max="200"
               class="config-input"
             />
           </div>
@@ -1211,17 +1483,6 @@ const handleUpdateUnit = (value: string) => {
         
         <div class="config-section">
           <div class="section-header">配置</div>
-          
-          <div class="config-item">
-            <label>发送Topic</label>
-            <input
-              :value="inputConfig?.topic"
-              @input="emit('update', { topic: inputValue($event) })"
-              type="text"
-              class="config-input"
-              placeholder="请输入Topic名称"
-            />
-          </div>
           
           <div class="config-item">
             <label>占位提示</label>
@@ -1251,9 +1512,89 @@ const handleUpdateUnit = (value: string) => {
           </div>
         </div>
       </template>
+
+      <template v-if="widget.type === 'radio'">
+        <div class="config-section">
+          <div class="section-header">选项配置</div>
+          
+          <div class="theme-list">
+            <div
+              v-for="(option, index) in radioConfig?.options || []"
+              :key="index"
+              class="theme-item radio-item-horizontal"
+            >
+              <input
+                :value="option.label"
+                @input="handleUpdateRadioOption(index, 'label', inputValue($event))"
+                type="text"
+                placeholder="选项名称"
+                class="theme-input"
+                :class="(radioConfig?.options?.length || 0) === 1 ? 'radio-input-single' : 'radio-input'"
+              />
+              <input
+                :value="option.value"
+                @input="handleUpdateRadioOption(index, 'value', inputValue($event))"
+                type="text"
+                placeholder="发送值"
+                class="theme-input"
+                :class="(radioConfig?.options?.length || 0) === 1 ? 'radio-input-single' : 'radio-input'"
+              />
+              <button
+                v-if="(radioConfig?.options?.length || 0) > 2"
+                class="remove-theme-btn"
+                @click="handleRemoveRadioOption(index)"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2">
+                  <path d="M18 6L6 18"/>
+                  <path d="M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <button class="add-theme-btn" @click="handleAddRadioOption">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1e88e5" stroke-width="2">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+            <span>添加选项</span>
+          </button>
+        </div>
+        
+        <div class="info-section">
+          <div class="info-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 16v-4M12 8h.01"/>
+            </svg>
+            <span>我该发送什么？</span>
+          </div>
+          <div class="info-content">
+            <p>
+              选择第一个选项、第二个选项、第N个选项，均发送对应数据
+            </p>
+          </div>
+        </div>
+        
+        <div class="info-section">
+          <div class="info-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1e88e5" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 16v-4M12 8h.01"/>
+            </svg>
+            <span>组件在干什么？</span>
+          </div>
+          <div class="info-content">
+            <p>
+              1. 接收topic消息,刷新组件,选中对应的选项.<br/>
+              2. 当用户点击选项时,向topic发送消息.
+            </p>
+          </div>
+        </div>
+      </template>
       
       <div class="action-section">
         <button
+          v-if="!['button', 'switch', 'input', 'radio', 'decorativeText'].includes(widget.type)"
           class="clear-data-btn"
           @click="emit('clearData')"
         >
@@ -1424,11 +1765,56 @@ const handleUpdateUnit = (value: string) => {
   gap: 8px;
 }
 
+.theme-color-pick {
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.theme-color-pick:active {
+  transform: scale(0.85);
+}
+
+.theme-color-pick input[type="color"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
 .theme-color {
   width: 16px;
   height: 16px;
   border-radius: 4px;
   flex-shrink: 0;
+}
+
+.text-color-pick {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+}
+
+.text-color-pick .theme-color {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 2px solid #e0e0e0;
+}
+
+.color-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.color-rgb-value {
+  font-size: 13px;
+  color: #444;
+  font-family: monospace;
+  font-weight: 600;
 }
 
 .theme-input {
@@ -1439,26 +1825,108 @@ const handleUpdateUnit = (value: string) => {
   font-size: 12px;
 }
 
-.theme-color-input {
-  width: 40px;
-  padding: 2px;
-  cursor: pointer;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  background: none;
-}
-
 .remove-theme-btn {
   background: none;
   border: none;
   cursor: pointer;
   padding: 4px;
   opacity: 0.6;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .remove-theme-btn:hover {
   opacity: 1;
+}
+
+.remove-theme-btn:active {
+  transform: scale(0.85);
+}
+
+.radio-item-horizontal {
+  flex-direction: row;
+  align-items: center;
+}
+
+.radio-input-single {
+  width: 50%;
+  flex: none;
+}
+
+.radio-input {
+  width: calc(50% - 12px);
+  flex: none;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.orientation-toggle {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.orientation-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  color: #666;
+  font-size: 12px;
+  transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.orientation-btn:hover {
+  border-color: #1e88e5;
+  color: #1e88e5;
+}
+
+.orientation-btn:active {
+  transform: scale(0.93);
+}
+
+.orientation-btn.active {
+  border-color: #1e88e5;
+  background: #1e88e5;
+  color: #fff;
+}
+
+.hide-mode-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.hide-mode-btn {
+  flex: 1;
+  min-width: 80px;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  color: #666;
+  font-size: 12px;
+  transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.hide-mode-btn:hover {
+  border-color: #1e88e5;
+  color: #1e88e5;
+}
+
+.hide-mode-btn:active {
+  transform: scale(0.93);
+}
+
+.hide-mode-btn.active {
+  border-color: #1e88e5;
+  background: #1e88e5;
+  color: #fff;
 }
 
 .add-theme-btn {
@@ -1475,12 +1943,16 @@ const handleUpdateUnit = (value: string) => {
   cursor: pointer;
   color: #5c9ce6;
   font-size: 13px;
-  transition: all 0.2s;
+  transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .add-theme-btn:hover {
   border-color: #5c9ce6;
   background: rgba(92, 156, 230, 0.06);
+}
+
+.add-theme-btn:active {
+  transform: scale(0.95);
 }
 
 .info-section {
@@ -1567,13 +2039,17 @@ const handleUpdateUnit = (value: string) => {
   color: #fff;
   font-size: 13px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
   font-weight: 500;
 }
 
 .remove-btn:hover {
   opacity: 0.88;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.remove-btn:active {
+  transform: scale(0.95);
 }
 
 .clear-data-btn {
@@ -1589,7 +2065,7 @@ const handleUpdateUnit = (value: string) => {
   color: #fff;
   font-size: 13px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
   margin-bottom: 8px;
   font-weight: 500;
 }
@@ -1597,5 +2073,9 @@ const handleUpdateUnit = (value: string) => {
 .clear-data-btn:hover {
   opacity: 0.88;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.clear-data-btn:active {
+  transform: scale(0.95);
 }
 </style>

@@ -1,9 +1,10 @@
 /**
  * 导出项目弹窗组件
  * 选择要导出的项目及保存方式（手动保存 / 自动下载）
+ * 支持多选导出
  */
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { Project } from '../types'
 
 const props = defineProps<{
@@ -11,41 +12,88 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  export: [project: Project, method: 'manual' | 'auto']
   close: []
+  export: [projects: Project[]]
 }>()
 
-const selectedProjectId = ref<string | null>(null)
+const selectedProjectIds = ref<Set<string>>(new Set())
+const isClosing = ref(false)
 
-const handleExport = (method: 'manual' | 'auto') => {
-  const project = props.projects.find(p => p.id === selectedProjectId.value)
-  if (project) {
-    emit('export', project, method)
+const allSelected = computed(() => {
+  return props.projects.length > 0 && selectedProjectIds.value.size === props.projects.length
+})
+
+const hasSelection = computed(() => selectedProjectIds.value.size > 0)
+
+const toggleProject = (id: string) => {
+  const newSet = new Set(selectedProjectIds.value)
+  if (newSet.has(id)) {
+    newSet.delete(id)
+  } else {
+    newSet.add(id)
+  }
+  selectedProjectIds.value = newSet
+}
+
+const toggleAll = () => {
+  if (allSelected.value) {
+    selectedProjectIds.value = new Set()
+  } else {
+    selectedProjectIds.value = new Set(props.projects.map(p => p.id))
+  }
+}
+
+const handleClose = () => {
+  isClosing.value = true
+  setTimeout(() => {
+    emit('close')
+  }, 200)
+}
+
+const handleExport = () => {
+  const selectedProjects = props.projects.filter(p => selectedProjectIds.value.has(p.id))
+  if (selectedProjects.length > 0) {
+    isClosing.value = true
+    setTimeout(() => {
+      emit('export', selectedProjects)
+    }, 200)
   }
 }
 </script>
 
 <template>
-  <div class="modal-overlay" @click.self="emit('close')">
+  <div class="modal-overlay" :class="{ closing: isClosing }" @click.self="handleClose">
     <div class="modal-content">
       <div class="modal-header">
         <h2>导出项目</h2>
-        <button class="close-btn" @click="emit('close')">×</button>
+        <button class="close-btn" @click="handleClose">×</button>
       </div>
       <div class="modal-body">
-        <p class="modal-desc">请选择要导出的项目：</p>
+        <p class="modal-desc">请选择要导出的项目（可多选）：</p>
+        <div class="select-all-row" v-if="projects.length > 0">
+          <label class="select-all-label">
+            <input
+              type="checkbox"
+              :checked="allSelected"
+              @change="toggleAll"
+              class="checkbox-input"
+            />
+            <span class="select-all-text">全选</span>
+          </label>
+          <span class="selected-count">已选 {{ selectedProjectIds.size }} / {{ projects.length }}</span>
+        </div>
         <div class="project-list">
           <label
             v-for="project in projects"
             :key="project.id"
             class="project-option"
-            :class="{ selected: selectedProjectId === project.id }"
+            :class="{ selected: selectedProjectIds.has(project.id) }"
           >
             <input
-              type="radio"
-              :value="project.id"
-              v-model="selectedProjectId"
-              class="radio-input"
+              type="checkbox"
+              :checked="selectedProjectIds.has(project.id)"
+              @change="toggleProject(project.id)"
+              class="checkbox-input"
             />
             <span class="project-name">{{ project.name }}</span>
             <span class="project-meta">{{ project.widgets.length }} 个组件</span>
@@ -54,22 +102,14 @@ const handleExport = (method: 'manual' | 'auto') => {
         <p v-if="projects.length === 0" class="empty-text">暂无项目可导出</p>
       </div>
       <div class="modal-footer export-footer">
-        <button class="btn btn-secondary" @click="emit('close')">取消</button>
+        <button class="btn btn-secondary" @click="handleClose">取消</button>
         <button
-          class="btn btn-save-manual"
-          :disabled="!selectedProjectId"
-          @click="handleExport('manual')"
-          title="弹出文件夹选择器，将文件保存到指定目录"
-        >
-          📂 手动保存
-        </button>
-        <button
-          class="btn btn-save-auto"
-          :disabled="!selectedProjectId"
-          @click="handleExport('auto')"
+          class="btn btn-save"
+          :disabled="!hasSelection"
+          @click="handleExport"
           title="由浏览器自动下载到默认下载目录"
         >
-          ⬇ 自动下载
+          ⬇ 导出选中项目
         </button>
       </div>
     </div>
@@ -170,11 +210,39 @@ const handleExport = (method: 'manual' | 'auto') => {
   background: #e6f7ff;
 }
 
-.radio-input {
+.checkbox-input {
   accent-color: #1890ff;
   width: 16px;
   height: 16px;
   flex-shrink: 0;
+}
+
+.select-all-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 8px;
+}
+
+.select-all-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #666;
+}
+
+.select-all-text {
+  user-select: none;
+}
+
+.selected-count {
+  font-size: 12px;
+  color: #1890ff;
+  font-weight: 500;
 }
 
 .project-name {
@@ -215,12 +283,16 @@ const handleExport = (method: 'manual' | 'auto') => {
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  transition: all 0.2s;
+  transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.93);
 }
 
 .btn-secondary {
@@ -232,21 +304,12 @@ const handleExport = (method: 'manual' | 'auto') => {
   background: #e0e0e0;
 }
 
-.btn-save-manual {
-  background: #1890ff;
-  color: #fff;
-}
-
-.btn-save-manual:hover:not(:disabled) {
-  background: #40a9ff;
-}
-
-.btn-save-auto {
+.btn-save {
   background: #52c41a;
   color: #fff;
 }
 
-.btn-save-auto:hover:not(:disabled) {
+.btn-save:hover:not(:disabled) {
   background: #73d13d;
 }
 </style>

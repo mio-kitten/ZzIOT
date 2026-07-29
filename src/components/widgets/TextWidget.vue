@@ -3,7 +3,7 @@
  * 显示单个 MQTT 主题接收到的消息，支持多主题/单主题显示模式
  */
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import type { DataPoint, ThemeConfig } from '@/types'
 
 const props = defineProps<{
@@ -21,6 +21,16 @@ const props = defineProps<{
 
 const containerRef = ref<HTMLElement | null>(null)
 const containerSize = ref({ width: 280, height: 80 })
+const hasEverReceivedData = ref(false)
+
+watch(() => props.data, (newData) => {
+  if (hasEverReceivedData.value) return
+
+  const hasData = Object.values(newData).some(arr => arr && arr.length > 0)
+  if (hasData) {
+    hasEverReceivedData.value = true
+  }
+}, { deep: true, immediate: true })
 
 const updateSize = () => {
   if (containerRef.value) {
@@ -57,6 +67,9 @@ const lines = computed(() => {
   
   if (props.config.displayMode === 'singleTopic' && props.config.themes) {
     // 单主题多数据模式
+    if (!hasEverReceivedData.value) {
+      return [{ text: '等待数据...' }]
+    }
     props.config.themes.forEach((theme, index) => {
       const lineId = `line-${index + 1}`
       const points = props.data[lineId]
@@ -75,6 +88,9 @@ const lines = computed(() => {
     })
   } else if (props.config.themes) {
     // 多主题模式
+    if (!hasEverReceivedData.value) {
+      return [{ text: '等待数据...' }]
+    }
     props.config.themes.forEach((theme) => {
       if (theme.topic) {
         const points = props.data[theme.topic]

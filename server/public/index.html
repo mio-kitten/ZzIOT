@@ -66,9 +66,9 @@
       font-size: 13px;
     }
     .topic-item:hover { background: #f5f8ff; }
-    .topic-item.active { background: #e8f0fe; border-left: 3px solid #1a73e8; }
+    .topic-item.active { background: #e8f0fe; border-left: 3px solid #1a73e8; box-shadow: inset 0 0 0 1px #1a73e8; }
     .topic-item.system-topic { background: #fef9e7; }
-    .topic-item.system-topic.active { background: #fef3cd; border-left: 3px solid #f0a030; }
+    .topic-item.system-topic.active { background: #fef3cd; border-left: 3px solid #f0a030; box-shadow: inset 0 0 0 1px #f0a030; }
     .topic-item.system-topic .topic-name { font-weight: 600; color: #856404; }
     .topic-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .topic-recent { font-size: 11px; color: #aaa; margin-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; }
@@ -83,6 +83,7 @@
     }
     .topic-item:hover .topic-delete { visibility: visible; }
     .topic-delete:hover { color: #ef5350; }
+    .topic-delete:active { transform: scale(0.85); }
     .sidebar-footer {
       padding: 10px 16px;
       border-top: 1px solid #e0e0e0;
@@ -97,11 +98,13 @@
       background: #fff;
       cursor: pointer;
       font-size: 12px;
-      transition: all 0.2s;
+      transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     .sidebar-footer button:hover { background: #f5f5f5; }
+    .sidebar-footer button:active { transform: scale(0.93); }
     .sidebar-footer button.danger { color: #ef5350; border-color: #ef5350; }
     .sidebar-footer button.danger:hover { background: #fff5f5; }
+    .sidebar-footer button.danger:active { transform: scale(0.93); }
     .content {
       flex: 1;
       display: flex;
@@ -127,12 +130,18 @@
       gap: 10px;
     }
     .content-header .topic-badge {
-      background: #e8f0fe;
-      color: #1a73e8;
       padding: 2px 10px;
       border-radius: 10px;
       font-size: 12px;
       font-weight: 500;
+    }
+    .content-header .topic-badge.system {
+      background: #fff3e0;
+      color: #e65100;
+    }
+    .content-header .topic-badge.normal {
+      background: #e8f0fe;
+      color: #1a73e8;
     }
     .clear-msgs-btn {
       margin-left: auto;
@@ -143,9 +152,10 @@
       color: #ef5350;
       font-size: 12px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     .clear-msgs-btn:hover { background: #ef5350; color: #fff; }
+    .clear-msgs-btn:active { transform: scale(0.93); }
     .header-refresh {
       margin-left: auto;
       display: flex;
@@ -162,8 +172,10 @@
       background: #fff;
       cursor: pointer;
       font-size: 12px;
+      transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     .header-refresh button:hover { background: #f5f5f5; }
+    .header-refresh button:active { transform: scale(0.93); }
     .header-refresh input[type="checkbox"] { margin-right: 3px; }
     .message-list { flex: 1; overflow-y: auto; padding: 12px 20px; }
     .message-item {
@@ -226,9 +238,10 @@
       border-radius: 4px;
       cursor: pointer;
       font-size: 13px;
-      transition: background 0.2s;
+      transition: background 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     .publish-bar button:hover { background: #1557b0; }
+    .publish-bar button:active { transform: scale(0.93); }
     .last-sent {
       font-size: 12px;
       color: #999;
@@ -245,6 +258,10 @@
       align-items: center;
       justify-content: center;
       z-index: 100;
+      animation: modalFadeIn 0.3s ease;
+    }
+    .create-dialog.closing {
+      animation: modalFadeOut 0.2s ease forwards;
     }
     .create-dialog-content {
       background: #fff;
@@ -252,6 +269,10 @@
       padding: 24px;
       width: 360px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      animation: modalSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .create-dialog.closing .create-dialog-content {
+      animation: modalSlideOut 0.2s ease forwards;
     }
     .create-dialog-content h3 { margin-bottom: 16px; font-size: 16px; }
     .create-dialog-content input {
@@ -274,7 +295,9 @@
       font-size: 13px;
       border: 1px solid #ddd;
       background: #fff;
+      transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
+    .create-dialog-actions button:active:not(:disabled) { transform: scale(0.93); }
     .create-dialog-actions button.primary {
       background: #1a73e8;
       color: #fff;
@@ -290,16 +313,22 @@
       width: 90%;
       box-shadow: 0 4px 20px rgba(0,0,0,0.15);
       text-align: center;
+      animation: modalSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .create-dialog.closing .msg-dialog-content {
+      animation: modalSlideOut 0.2s ease forwards;
     }
     .msg-icon { font-size: 42px; margin-bottom: 10px; }
     .msg-title { font-size: 17px; font-weight: 700; color: #333; margin-bottom: 14px; }
     .msg-body { font-size: 14px; color: #555; line-height: 1.7; margin-bottom: 20px; }
     .msg-actions { display: flex; justify-content: center; gap: 12px; }
     .msg-btn {
-      padding: 7px 24px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 500; transition: background 0.2s;
+      padding: 7px 24px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 500;
       background: #fff; color: #555;
+      transition: background 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     .msg-btn:hover { background: #f5f5f5; }
+    .msg-btn:active { transform: scale(0.93); }
     .msg-btn-primary { background: #1a73e8; color: #fff; border-color: #1a73e8; }
     .msg-btn-primary:hover { background: #1557b0; }
     .msg-btn-warning { background: #ffa940; color: #fff; border-color: #ffa940; }
@@ -324,6 +353,10 @@
       background: #5c9ce6;
       box-shadow: 0 0 4px rgba(92, 156, 230, 0.5);
     }
+    .mode-dot.system {
+      background: #ffa726;
+      box-shadow: 0 0 4px rgba(255, 167, 38, 0.5);
+    }
     .footer {
       background: #f8f9fa;
       border-top: 1px solid #e0e0e0;
@@ -341,6 +374,36 @@
     }
     .footer a:hover {
       text-decoration: underline;
+    }
+
+    /* 模态框动画 */
+    @keyframes modalFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes modalFadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+    @keyframes modalSlideOut {
+      from {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+      }
     }
   </style>
 </head>
@@ -409,7 +472,7 @@
     </div>
   </div>
   <div class="footer">
-    <span>自制IOT物联网显示面板 | V2.1.0</span>
+    <span>自制IOT物联网显示面板 | V2.2.0</span>
     <span>By—雪菱(mio-kitten)</span>
   </div>
 
@@ -453,11 +516,16 @@
     }
 
     function closeMsgDialog(result) {
-      document.getElementById('msgDialog').style.display = 'none'
-      if (msgDialogResolve) {
-        msgDialogResolve(result)
-        msgDialogResolve = null
-      }
+      const dialog = document.getElementById('msgDialog')
+      dialog.classList.add('closing')
+      setTimeout(() => {
+        dialog.style.display = 'none'
+        dialog.classList.remove('closing')
+        if (msgDialogResolve) {
+          msgDialogResolve(result)
+          msgDialogResolve = null
+        }
+      }, 200)
     }
     let autoRefreshTimer = null
     let autoRefreshEnabled = true
@@ -524,7 +592,7 @@
         const lastMsg = t.messages.length > 0 ? t.messages[t.messages.length - 1].payload : ''
         const preview = lastMsg.length > 10 ? lastMsg.slice(0, 10) + '...' : lastMsg
         const isSystem = t.topic === '系统信息'
-        const modeDot = '<span class="mode-dot siot" title="SIoT模式"></span>'
+        const modeDot = isSystem ? '<span class="mode-dot system" title="系统信息"></span>' : '<span class="mode-dot siot" title="SIoT模式"></span>'
         return `<div class="topic-item${active}${isSystem ? ' system-topic' : ''}" onclick="selectTopic('${escapeHtml(t.topic)}')">
           <span class="topic-name">${modeDot}${escapeHtml(t.topic)}</span>
           <span class="topic-recent">${escapeHtml(preview)}</span>
@@ -543,7 +611,40 @@
       if (topic) {
         renderMessages(topic)
       }
+      
+      // 先渲染列表，不显示active状态
       renderTopicList()
+      
+      // 找到目标元素并执行回弹动画
+      requestAnimationFrame(() => {
+        const topicItems = document.querySelectorAll('.topic-item')
+        const targetItem = Array.from(topicItems).find(item => 
+          item.onclick && item.onclick.toString().includes(topicName)
+        )
+        
+        if (targetItem) {
+          targetItem.getAnimations().forEach(a => a.cancel())
+          
+          const isSystem = topicName === '系统信息'
+          const outlineColor = isSystem ? '#ffa726' : '#5c9ce6'
+          
+          const animation = targetItem.animate([
+            { transform: 'scale(1)', outline: `0px solid ${outlineColor}`, outlineOffset: '0px' },
+            { transform: 'scale(0.98)', outline: `3px solid ${outlineColor}`, outlineOffset: '0px' },
+            { transform: 'scale(1)', outline: `0px solid transparent`, outlineOffset: '0px' }
+          ], {
+            duration: 400,
+            easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+            fill: 'forwards'
+          })
+          
+          animation.onfinish = () => {
+            targetItem.style.transform = ''
+            targetItem.style.outline = ''
+            targetItem.style.outlineOffset = ''
+          }
+        }
+      })
     }
 
     function renderHeader(topicName, topic) {
@@ -551,8 +652,9 @@
       const header = document.getElementById('contentHeader')
       if (topicName) {
         const isSystem = topicName === '系统信息'
+        const badgeClass = isSystem ? 'topic-badge system' : 'topic-badge normal'
         const btn = hasMsgs ? `<button class="clear-msgs-btn" onclick="clearTopicMessages('${escapeHtml(topicName)}')">清空消息</button>` : ''
-        header.innerHTML = `<div class="header-left"><span>消息列表</span><span class="topic-badge">${escapeHtml(topicName)}</span>${btn}</div><div class="header-refresh"><span id="refreshInfo">自动刷新: 1秒</span><label><input type="checkbox" id="autoRefresh" checked onchange="toggleAutoRefresh()" /> 自动刷新</label><button onclick="refreshData()">手动刷新</button></div>`
+        header.innerHTML = `<div class="header-left"><span>消息列表</span><span class="${badgeClass}">${escapeHtml(topicName)}</span>${btn}</div><div class="header-refresh"><span id="refreshInfo">自动刷新: 1秒</span><label><input type="checkbox" id="autoRefresh" checked onchange="toggleAutoRefresh()" /> 自动刷新</label><button onclick="refreshData()">手动刷新</button></div>`
       } else {
         header.innerHTML = `<div class="header-left"><span>选择一个主题查看消息</span></div><div class="header-refresh"><span id="refreshInfo">自动刷新: 1秒</span><label><input type="checkbox" id="autoRefresh" checked onchange="toggleAutoRefresh()" /> 自动刷新</label><button onclick="refreshData()">手动刷新</button></div>`
       }
@@ -592,11 +694,16 @@
     }
 
     function hideCreateDialog() {
-      document.getElementById('createDialog').style.display = 'none'
-      document.getElementById('newTopicName').value = ''
-      document.getElementById('topicNameError').style.display = 'none'
-      document.getElementById('newTopicName').className = ''
-      document.getElementById('createTopicBtn').disabled = false
+      const dialog = document.getElementById('createDialog')
+      dialog.classList.add('closing')
+      setTimeout(() => {
+        dialog.style.display = 'none'
+        dialog.classList.remove('closing')
+        document.getElementById('newTopicName').value = ''
+        document.getElementById('topicNameError').style.display = 'none'
+        document.getElementById('newTopicName').className = ''
+        document.getElementById('createTopicBtn').disabled = false
+      }, 200)
     }
 
     function checkTopicNameConflict() {

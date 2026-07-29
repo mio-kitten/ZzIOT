@@ -103,7 +103,7 @@ watch(() => props.config.placeholder, () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .send-btn:hover {
@@ -111,6 +111,6 @@ watch(() => props.config.placeholder, () => {
 }
 
 .send-btn:active {
-  opacity: 0.8;
+  transform: scale(0.9);
 }
 </style>

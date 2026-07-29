@@ -60,6 +60,15 @@ watch(() => siotConfig.value.port, (newPort, oldPort) => {
   }
 })
 
+const isClosing = ref(false)
+
+const handleClose = () => {
+  isClosing.value = true
+  setTimeout(() => {
+    emit('cancel')
+  }, 200)
+}
+
 const handleConfirm = () => {
   if (platform.value === 'siot') {
     if (!siotConfig.value.server.trim()) {
@@ -82,16 +91,19 @@ const handleConfirm = () => {
     siot: { ...siotConfig.value },
     bafayun: { ...bafayunConfig.value }
   }
-  emit('confirm', config)
+  isClosing.value = true
+  setTimeout(() => {
+    emit('confirm', config)
+  }, 200)
 }
 </script>
 
 <template>
-  <div class="modal-overlay" @click.self="emit('cancel')">
+  <div class="modal-overlay" :class="{ closing: isClosing }" @click.self="handleClose">
     <div class="modal-content">
       <div class="modal-header">
         <h2>选择物联网平台</h2>
-        <button class="close-btn" @click="emit('cancel')">×</button>
+        <button class="close-btn" @click="handleClose">×</button>
       </div>
       
       <div class="modal-body">
@@ -271,11 +283,15 @@ const handleConfirm = () => {
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  transition: all 0.2s;
+  transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .btn:hover {
   opacity: 0.88;
+}
+
+.btn:active {
+  transform: scale(0.93);
 }
 
 .btn-success {
