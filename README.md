@@ -118,13 +118,13 @@ npm run electron:build
 
 ---
 
-# 😍下载方式：GitHub Releases 中下载 ZIP (永远保持最新)
+# 😍下载方式：GitHub Releases 中下载 压缩包 (永远保持最新)
 
 #### 或
 
 ### 用123云盘下载（V2.2.1）：
 
-[网盘链接（注意流量限制 rar包体80.7 MB）](https://1842972489.share.123pan.cn/123pan/SJqUTd-Do6l3)
+[网盘链接（rar包体59.56 MB）](https://1842972489.share.123pan.cn/123pan/SJqUTd-Do6l3)
 > 提取码：NOTH
 
 ---

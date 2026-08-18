@@ -21,6 +21,16 @@ if %errorlevel% neq 0 (
     exit /b
 )
 
+REM 检查 node_modules 是否存在
+if not exist "node_modules\" (
+    echo [错误] 项目依赖未安装
+    echo 请先运行"检查安装依赖.bat"安装项目依赖
+    echo.
+    echo 按下任意键退出...
+    pause >nul
+    exit /b
+)
+
 echo 请选择启动方式：
 echo.
 echo  [1] 自动打开浏览器

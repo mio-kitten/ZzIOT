@@ -77,6 +77,23 @@ if exist "%NODE_MSI%" (
 
 :installed
 echo.
+
+REM 检查 node_modules 是否存在
+if not exist "node_modules\" (
+    echo [信息] 检测到项目依赖未安装，正在安装 vite、vue 等依赖...
+    echo 请稍等片刻
+    echo.
+    call npm install
+    if %errorlevel% neq 0 (
+        echo [错误] 依赖安装失败，请检查网络后重新运行本程序
+        pause
+        exit /b
+    )
+    echo.
+    echo [OK] 项目依赖安装完成
+    echo.
+)
+
 echo ================================================
 echo       依赖已全部安装，请依需求选择启动可视化面板或者启动内网服务
 echo ================================================
