@@ -1149,7 +1149,7 @@ onUnmounted(() => {
     
     <!-- 页面水印 -->
     <div class="watermark">
-      <div class="watermark-left">自制IOT物联网显示面板 | {{ APP_VERSION }}</div>
+      <div class="watermark-left">ZzIOT-可视化面板 | {{ APP_VERSION }}</div>
       <div class="watermark-right">By—雪菱(mio-kitten)</div>
     </div>
 

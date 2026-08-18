@@ -25,8 +25,8 @@
 
 | 文件 | 位置 | 左侧格式 | 右侧格式 |
 |------|------|----------|----------|
-| `src/App.vue` | `.watermark` 元素 | `自制IOT物联网显示面板 \| {{ APP_VERSION }}` | `By—雪菱(mio-kitten)` |
-| `server/public/index.html` | `.footer` 元素 | `自制IOT物联网显示面板 \| V2.0.0` | `By—雪菱(mio-kitten)` |
+| `src/App.vue` | `.watermark` 元素 | `ZzIOT-可视化面板 \| {{ APP_VERSION }}` | `By—雪菱(mio-kitten)` |
+| `server/public/index.html` | `.footer` 元素 | `ZzIOT-内网数据面板 \| V2.0.0` | `By—雪菱(mio-kitten)` |
 
 注意事项：
 - 可视化面板使用 `{{ APP_VERSION }}` 自动引用 `src/version.ts` 的值

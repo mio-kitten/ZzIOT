@@ -51,7 +51,7 @@ export class MqttClientWrapper {
         options = {
           username: isInternal ? '' : siot.username,
           password: isInternal ? '' : siot.password,
-          clientId: `iot-visualization-${Date.now()}`,
+          clientId: `ZzIOT-${Date.now()}`,
           clean: true,
           connectTimeout: 10000,
           keepalive: 60,

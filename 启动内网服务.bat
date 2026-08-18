@@ -1,11 +1,11 @@
 @echo off
 chcp 65001 >nul 2>&1
-title IoT内网服务 - 启动
+title ZzIOT-内网服务 ^> 启动
 cd /d "%~dp0"
 
 echo.
 echo ================================================
-echo          IoT内网服务 - 启动
+echo          ZzIOT-内网服务 ^> 启动
 echo ================================================
 echo.
 
@@ -63,7 +63,7 @@ if %errorlevel% neq 0 (
 )
 
 echo 启动内网服务后端...
-start "IoT内网服务" cmd /k "cd /d ""%~dp0"" && npm run server"
+start "ZzIOT-内网数据面板" cmd /k "cd /d ""%~dp0"" && npm run server"
 echo.
 echo ================================================
 echo         内网服务启动完成！

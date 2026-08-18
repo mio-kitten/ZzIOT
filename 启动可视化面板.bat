@@ -1,13 +1,13 @@
 @echo off
 for /F %%e in ('echo prompt $E ^| cmd') do set "ESC=%%e"
 chcp 65001 >nul 2>&1
-title IoT可视化面板 - 启动
+    title ZzIOT-可视化面板 ^> 启动
 
 cd /d "%~dp0"
 
 echo.
 echo ================================================
-echo        IoT可视化面板 - 启动
+echo        ZzIOT-可视化面板 ^> 启动
 echo ================================================
 echo.
 
@@ -43,7 +43,7 @@ goto :AUTO
 :AUTO
 echo.
 echo 启动可视化面板前端...
-start "IoT可视化面板" cmd /k "cd /d ""%~dp0"" && npm run dev"
+start "ZzIOT-可视化面板" cmd /k "cd /d ""%~dp0"" && npm run dev"
 echo.
 echo 等待前端启动...
 timeout /t 3 /nobreak >nul
@@ -65,7 +65,7 @@ exit
 :MANUAL
 echo.
 echo 启动可视化面板前端...
-start "IoT可视化面板" cmd /k "cd /d ""%~dp0"" && npm run dev"
+start "ZzIOT-可视化面板" cmd /k "cd /d ""%~dp0"" && npm run dev"
 echo.
 echo ================================================
 echo         可视化面板启动完成！

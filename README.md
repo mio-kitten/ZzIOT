@@ -1,12 +1,12 @@
 <div align="center">
 
-# 自制IOT物联网显示面板（iot-visualization）
+# ZzIOT 物联网显示面板
 
-[![version](https://img.shields.io/badge/version-v2.2.0-blue)](https://github.com/mio-kitten/iot-visualization)
-[![platform](https://img.shields.io/badge/platform-Windows%2010%2B-green)](https://github.com/mio-kitten/iot-visualization)
-[![tech](https://img.shields.io/badge/tech-Vue%203-orange)](https://vuejs.org/)
-[![tech](https://img.shields.io/badge/tech-Electron%2028+-purple)](https://www.electronjs.org/)
-[![tech](https://img.shields.io/badge/tech-TypeScript-blue)](https://www.typescriptlang.org/)
+[![version](https://img.shields.io/badge/version-v2.2.1-blue)](https://github.com/mio-kitten/zziot)
+[![platform](https://img.shields.io/badge/platform-Windows%2010%2B-green)](https://github.com/mio-kitten/zziot)
+[![Vue](https://img.shields.io/badge/Vue%203-4FC08D)](https://vuejs.org/)
+[![Electron](https://img.shields.io/badge/Electron%2028+-47848F)](https://www.electronjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6)](https://www.typescriptlang.org/)
 
 一个基于 **Vue 3** + **Electron** 开发的物联网数据可视化工具
 
@@ -22,7 +22,7 @@
 | **已支持的平台** | Windows 10 及以上X64 |
 | **组件数量** | 11 个 |
 | **状态** | 开发中 |
-|**版本** | V2.2.0 | 
+|**版本** | V2.2.1 | 
 
 ---
 
@@ -123,7 +123,7 @@ npm run electron:build
 
 #### 或
 
-### 用123云盘下载（V2.2.0）：
+### 用123云盘下载（V2.2.1）：
 
 [网盘链接（注意流量限制 rar包体80.7 MB）](https://1842972489.share.123pan.cn/123pan/SJqUTd-Do6l3)
 > 提取码：NOTH

@@ -9,8 +9,8 @@ import { getWidgetMinSize } from '@/utils/widgetMinSize';
 
 const projects = ref<Project[]>([]);
 const currentProjectId = ref<string | null>(null);
-const PLATFORM_KEY = 'iot-platform-config';
-const PROJECTS_KEY = 'iot-projects';
+const PLATFORM_KEY = 'zziot-platform-config';
+const PROJECTS_KEY = 'zziot-projects';
 
 export interface ImportDialogState {
   show: boolean
@@ -74,29 +74,132 @@ export function useProject() {
   const loadProjects = () => {
     try {
       const stored = localStorage.getItem(PROJECTS_KEY);
+      console.log('[项目加载] localStorage 原始数据长度:', stored ? stored.length : 0);
       if (stored) {
         projects.value = JSON.parse(stored);
+        console.log('[项目加载] 成功加载', projects.value.length, '个项目:', projects.value.map(p => p.name).join(', '));
         if (projects.value.length > 0 && !currentProjectId.value) {
           currentProjectId.value = projects.value[0].id;
         }
+      } else {
+        console.log('[项目加载] localStorage 中没有项目数据');
       }
-    } catch {
+    } catch (e) {
+      console.error('[项目加载] 解析失败:', e);
       projects.value = [];
     }
   };
 
   const saveProjects = () => {
-    localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects.value));
+    try {
+      const json = JSON.stringify(projects.value);
+      localStorage.setItem(PROJECTS_KEY, json);
+      console.log('[项目保存] 已保存', projects.value.length, '个项目, 数据大小:', json.length, 'bytes');
+    } catch (e) {
+      console.error('[项目保存失败] localStorage 写入异常:', e);
+      try {
+        const safe = JSON.stringify(projects.value, (_key, val) => {
+          if (typeof val === 'function') return undefined;
+          if (typeof val === 'symbol') return undefined;
+          if (val === undefined) return null;
+          return val;
+        });
+        localStorage.setItem(PROJECTS_KEY, safe);
+        console.log('[项目保存] 降级保存成功');
+      } catch (e2) {
+        console.error('[项目保存失败] 降级保存也失败:', e2);
+      }
+    }
   };
 
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
   const saveProjectsDebounced = () => {
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects.value));
+      try {
+        const json = JSON.stringify(projects.value);
+        localStorage.setItem(PROJECTS_KEY, json);
+        console.log('[项目保存(防抖)] 已保存', projects.value.length, '个项目');
+      } catch (e) {
+        console.error('[项目保存失败] localStorage 写入异常:', e);
+        try {
+          const safe = JSON.stringify(projects.value, (_key, val) => {
+            if (typeof val === 'function') return undefined;
+            if (typeof val === 'symbol') return undefined;
+            if (val === undefined) return null;
+            return val;
+          });
+          localStorage.setItem(PROJECTS_KEY, safe);
+        } catch (e2) {
+          console.error('[项目保存失败] 降级保存也失败:', e2);
+        }
+      }
       saveTimer = null;
     }, 300);
   };
+
+  /** 立即刷新待处理的防抖保存 */
+  const flushSave = () => {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+      try {
+        const json = JSON.stringify(projects.value);
+        localStorage.setItem(PROJECTS_KEY, json);
+        console.log('[项目保存(刷新)] 已刷新防抖保存');
+      } catch (e) {
+        console.error('[项目保存失败] localStorage 写入异常:', e);
+      }
+    }
+  };
+
+  /** 页面关闭/隐藏/冻结时强制保存，确保数据不丢失 */
+  const emergencySave = () => {
+    console.log('[紧急保存] 触发, 当前项目数:', projects.value.length);
+    flushSave();
+    try {
+      const json = JSON.stringify(projects.value);
+      localStorage.setItem(PROJECTS_KEY, json);
+      console.log('[紧急保存] 完成');
+    } catch (e) {
+      console.error('[项目保存失败] localStorage 写入异常:', e);
+    }
+  };
+
+  if (typeof window !== 'undefined') {
+    try {
+      const testKey = '__zziot_storage_test__';
+      localStorage.setItem(testKey, '1');
+      localStorage.removeItem(testKey);
+      console.log('[存储检测] localStorage 可用');
+    } catch (e) {
+      console.error('[存储检测] localStorage 不可用!', e);
+    }
+
+    window.addEventListener('beforeunload', emergencySave);
+    window.addEventListener('pagehide', emergencySave);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        console.log('[可见性变化] 页面隐藏，触发紧急保存');
+        emergencySave();
+      }
+    });
+    document.addEventListener('freeze', emergencySave);
+
+    const periodicSaveInterval = setInterval(() => {
+      flushSave();
+    }, 15000);
+
+    const cleanup = () => {
+      window.removeEventListener('beforeunload', emergencySave);
+      window.removeEventListener('pagehide', emergencySave);
+      document.removeEventListener('visibilitychange', emergencySave);
+      document.removeEventListener('freeze', emergencySave);
+      clearInterval(periodicSaveInterval);
+    };
+
+    window.addEventListener('unload', cleanup);
+  }
 
   const createProject = (name: string): Project => {
     const project: Project = {
@@ -109,7 +212,7 @@ export function useProject() {
     };
     projects.value.push(project);
     currentProjectId.value = project.id;
-    saveProjectsDebounced();
+    saveProjects();
     return project;
   };
 
@@ -152,7 +255,7 @@ export function useProject() {
     if (project) {
       project.widgets.push(widget);
       project.updatedAt = new Date().toISOString();
-      saveProjectsDebounced();
+      saveProjects();
     }
   };
 
@@ -186,7 +289,11 @@ export function useProject() {
   };
 
   const savePlatformConfig = (config: PlatformConfig) => {
-    localStorage.setItem(PLATFORM_KEY, JSON.stringify(config));
+    try {
+      localStorage.setItem(PLATFORM_KEY, JSON.stringify(config));
+    } catch (e) {
+      console.error('[平台配置保存失败] localStorage 写入异常:', e);
+    }
   };
 
   const loadPlatformConfig = (): PlatformConfig | null => {
@@ -734,6 +841,7 @@ export function useProject() {
     currentProject,
     loadProjects,
     saveProjects,
+    flushSave,
     createProject,
     updateProject,
     deleteProject,

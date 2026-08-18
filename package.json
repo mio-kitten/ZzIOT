@@ -1,7 +1,7 @@
 {
-  "name": "iot-visualization",
-  "version": "2.2.0",
-  "description": "自制IOT物联网显示面板",
+  "name": "zziot",
+  "version": "2.2.1",
+  "description": "ZzIOT 物联网显示面板",
   "scripts": {
     "dev": "vite",
     "server": "node server/index.js",

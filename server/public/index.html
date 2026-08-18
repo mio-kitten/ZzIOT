@@ -8,7 +8,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IoT 数据管理 - SIOT V2</title>
+  <title>ZzIOT-内网数据面板</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -409,7 +409,7 @@
 </head>
 <body>
   <div class="header">
-    <h1>IoT 数据管理面板</h1>
+    <h1>ZzIOT-内网数据面板</h1>
     <div class="header-right">
       <span><span class="status-dot" id="brokerDot"></span>Broker: <span id="brokerStatus">检测中...</span></span>
       <span>设备: <span id="clientCount">0</span> 台</span>
@@ -472,7 +472,7 @@
     </div>
   </div>
   <div class="footer">
-    <span>自制IOT物联网显示面板 | V2.2.0</span>
+    <span>ZzIOT-内网数据面板 | V2.2.1</span>
     <span>By—雪菱(mio-kitten)</span>
   </div>
 
@@ -547,7 +547,7 @@
           dot.className = 'status-dot offline'
           status.textContent = '未启动'
         }
-        document.title = `IoT 数据管理 - ${data.ip}:${data.webPort}`
+        document.title = `ZzIOT-内网数据面板 - ${data.ip}:${data.webPort}`
         if (data.projectId) {
           projectId = data.projectId
         }
@@ -557,7 +557,7 @@
         document.getElementById('clientCount').textContent = '0'
         document.getElementById('brokerDot').className = 'status-dot offline'
         document.getElementById('brokerStatus').textContent = '未启动'
-        document.title = 'IoT 数据管理 - 离线'
+        document.title = 'ZzIOT-内网数据面板 - 离线'
       }
     }
 
