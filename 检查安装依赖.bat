@@ -1,10 +1,10 @@
 @echo off
 chcp 65001 >nul
-title ZzIOT-可视化面板 启动器
+title ZzIOT-可视化面板集合工具
 
 echo.
 echo ================================================
-echo        ZzIOT-可视化面板 - 一键启动器
+echo        ZzIOT ^> 一键检查依赖安装
 echo ================================================
 echo.
 
@@ -65,9 +65,17 @@ if exist "%NODE_MSI%" (
     echo 正在启动安装程序，请稍候...
     msiexec /i "%NODE_MSI%" /passive /norestart
     echo.
-    echo 如果node安装进度条满了并窗口消失，则可依需求选择启动可视化面板或者启动内网服务
-    pause
-    exit /b
+    echo 继续检查安装中，请勿关闭窗口……
+    echo.
+    where node >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo [错误] Node.js 安装后仍无法检测到，请手动安装后重新运行
+        pause
+        exit /b
+    )
+    echo [OK] Node.js 安装完成
+    node --version
+    goto :installed
 ) else (
     echo [错误] 未找到对应架构的安装包: %NODE_MSI%
     echo 请确保安装包文件与脚本在同一目录下
