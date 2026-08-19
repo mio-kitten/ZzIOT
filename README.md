@@ -120,7 +120,7 @@ npm run electron:build
 
 ### 用123云盘下载（V2.3.26.819）：
 
-[网盘链接（rar包体59.56 MB）](https://1842972489.share.123pan.cn/123pan/SJqUTd-Do6l3)
+[网盘链接（rar包体59.56 MB）](https://1842972489.share.123pan.cn/123pan/SJqUTd-M9Xe3)
 > 提取码：NOTH
 
     版本号详解，例：V2.3.26.819
