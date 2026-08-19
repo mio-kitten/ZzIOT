@@ -3,7 +3,7 @@
 # ZzIOT 
 ### > 一个物联网数据可视化面板 + 本地内网创建服务(包括无网) 的集合工具体 <
 ---
-[![version](https://img.shields.io/badge/version-v2.2.1-blue)](https://github.com/mio-kitten/zziot)
+[![version](https://img.shields.io/badge/version-v2.3.26.819-blue)](https://github.com/mio-kitten/zziot)
 [![platform](https://img.shields.io/badge/platform-Windows%2010%2B-green)](https://github.com/mio-kitten/zziot)
 [![Vue](https://img.shields.io/badge/Vue%203-4FC08D)](https://vuejs.org/)
 [![Electron](https://img.shields.io/badge/Electron%2028+-47848F)](https://www.electronjs.org/)
@@ -21,7 +21,7 @@
 | **已支持的平台** | Windows 10 及以上X64 |
 | **组件数量** | 11 个 |
 | **状态** | 开发中 |
-|**版本** | V2.2.1 | 
+|**版本** | V2.3.26.819 | 
 
 ---
 
@@ -118,11 +118,14 @@ npm run electron:build
 
 #### 或
 
-### 用123云盘下载（V2.2.1）：
+### 用123云盘下载（V2.3.26.819）：
 
 [网盘链接（rar包体59.56 MB）](https://1842972489.share.123pan.cn/123pan/SJqUTd-Do6l3)
 > 提取码：NOTH
 
+####版本号详解，例：V2.3.26.819
+                   ———— ——————
+             小的版本号  日期：2026年8月19日
 ---
 
 ## 使用限制
