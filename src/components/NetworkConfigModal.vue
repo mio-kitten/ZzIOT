@@ -121,7 +121,7 @@ onUnmounted(() => {
         <div v-if="errorMsg" class="error-msg">{{ errorMsg }}</div>
 
         <div class="info-tip" v-if="!brokerRunning">
-          请先开启内网服务，设备才能连接
+          请先<span class="highlight">下滑并点击</span>开启内网服务，设备才能正常连接
         </div>
 
         <div class="status-section">
@@ -390,6 +390,11 @@ onUnmounted(() => {
   border: 1px solid #ffccc7;
   border-radius: 6px;
   text-align: center;
+}
+
+.info-tip .highlight {
+  color: #1a73e8;
+  font-weight: 700;
 }
 
 .info-yellow-tip {
