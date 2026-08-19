@@ -3,7 +3,7 @@
 # ZzIOT 
 ### > 一个物联网数据可视化面板 + 本地内网创建服务(包括无网) 的集合体工具 <
 ---
-[![version](https://img.shields.io/badge/version-v2.3.26.819-blue)](https://github.com/mio-kitten/zziot)
+[![version](https://img.shields.io/badge/version-v2.3.26.820-blue)](https://github.com/mio-kitten/zziot)
 [![platform](https://img.shields.io/badge/platform-Windows%2010%2B-green)](https://github.com/mio-kitten/zziot)
 [![Vue](https://img.shields.io/badge/Vue%203-4FC08D)](https://vuejs.org/)
 [![Electron](https://img.shields.io/badge/Electron%2028+-47848F)](https://www.electronjs.org/)

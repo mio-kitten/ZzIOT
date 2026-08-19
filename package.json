@@ -1,6 +1,6 @@
 {
   "name": "zziot",
-  "version": "2.3.26.819",
+  "version": "2.3.26.820",
   "description": "ZzIOT 物联网显示面板",
   "scripts": {
     "dev": "vite",
