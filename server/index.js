@@ -32,7 +32,7 @@ function loadApConfig() {
   } catch (e) {
     console.error('读取AP配置失败:', e.message)
   }
-  return { ssid: '', password: '', restartCount: 0 }
+  return { ssid: '', password: '', restartCount: 0, channel: 6 }
 }
 
 function saveApConfig(config) {
@@ -116,10 +116,10 @@ function force24GHzBand() {
   console.log('\x1b[32m[2.4G] ✅ 已完成所有2.4GHz强制设置\x1b[0m')
 }
 
-function startHostedNetwork(ssid, password) {
+function startHostedNetwork(ssid, password, channel) {
   // 方式1：传统托管网络（netsh wlan hostednetwork）- 强制2.4GHz
   try {
-    execSync(`netsh wlan set hostednetwork mode=allow ssid="${ssid}" key="${password}" channel=6`, {
+    execSync(`netsh wlan set hostednetwork mode=allow ssid="${ssid}" key="${password}" channel=${channel}`, {
       encoding: 'utf-8',
       stdio: 'pipe',
       timeout: 10000
@@ -563,14 +563,15 @@ function getOrGenerateApConfig() {
     
     config.ssid = `IoT-AP-${generateRandomString(6)}${String(Math.floor(Math.random() * 100)).padStart(2, '0')}`
     config.password = generateRandomString(8)
+    config.channel = [1, 6, 11][Math.floor(Math.random() * 3)]
     config.restartCount = 0
     console.log(`\x1b[91m已重置，请注意更改配置\x1b[0m`)
-    console.log(`\x1b[36m[无网AP] 生成新的随机WiFi: ${config.ssid} 密码: ${config.password}\x1b[0m`)
+    console.log(`\x1b[36m[无网AP] 生成新的随机WiFi: ${config.ssid} 密码: ${config.password} 信道: ${config.channel}\x1b[0m`)
   } else {
     const remaining = 20 - prevCount
     console.log('')
     console.log(`\x1b[91m断网AP重启${remaining}次后会重置WiFi名称、密码\x1b[0m`)
-    console.log(`\x1b[36m[无网AP] 使用已有的WiFi: ${config.ssid} 密码: ${config.password}\x1b[0m`)
+    console.log(`\x1b[36m[无网AP] 使用已有的WiFi: ${config.ssid} 密码: ${config.password} 信道: ${config.channel || 6}\x1b[0m`)
     console.log('')
   }
   
@@ -580,6 +581,23 @@ function getOrGenerateApConfig() {
 
 function getApConfig() {
   return loadApConfig()
+}
+
+function getCurrentWifiSSID() {
+  try {
+    const result = execSync('netsh wlan show interfaces', {
+      encoding: 'utf-8',
+      timeout: 5000,
+      windowsHide: true
+    })
+    const match = result.match(/SSID\s*:\s*(.+)/i)
+    if (match && match[1]) {
+      return match[1].trim()
+    }
+  } catch (e) {
+    // 非 Windows 或没有无线网卡
+  }
+  return ''
 }
 
 // 判断是否为"假"IP（虚拟适配器、APIPA等，没有真正的互联网连接）
@@ -864,10 +882,8 @@ app.get('/api/status', (req, res) => {
   const ip = getLocalIP()
   const offline = isOffline()
   const esp32IP = apHotspotStarted && hotspotIP ? hotspotIP : ip
-  let apInfo = null
-  if (offline || apHotspotStarted) {
-    apInfo = getApConfig()
-  }
+  const apInfo = getApConfig()
+  const currentWifiSSID = getCurrentWifiSSID()
   const accessUrl = offline ? `http://localhost:${WEB_PORT}` : `http://${ip}:${WEB_PORT}`
   res.json({
     ip,
@@ -877,7 +893,8 @@ app.get('/api/status', (req, res) => {
     accessUrl: accessUrl,
     isOffline: offline,
     hotspotStarted: apHotspotStarted,
-    apInfo: apInfo ? { ssid: apInfo.ssid, password: apInfo.password } : null
+    currentWifiSSID,
+    apInfo: apInfo ? { ssid: apInfo.ssid, password: apInfo.password, channel: apInfo.channel || 6 } : null
   })
 })
 
@@ -962,97 +979,6 @@ app.delete('/api/topics', (req, res) => {
   const sysTopic = loadData().find(t => t.topic === '系统信息')
   saveData(sysTopic ? [sysTopic] : [])
   res.json({ success: true })
-})
-
-// ========== 项目文件管理 API ==========
-const PROJECTS_DIR = path.join(DATA_DIR, 'projects')
-
-if (!fs.existsSync(PROJECTS_DIR)) {
-  fs.mkdirSync(PROJECTS_DIR, { recursive: true })
-}
-
-function getProjectFilePath(projectName) {
-  const safeName = projectName.replace(/[^a-zA-Z0-9\u4e00-\u9fa5_-]/g, '_')
-  return path.join(PROJECTS_DIR, `${safeName}.json`)
-}
-
-app.get('/api/projects', (req, res) => {
-  try {
-    const files = fs.readdirSync(PROJECTS_DIR)
-    const projects = files
-      .filter(f => f.endsWith('.json'))
-      .map(f => {
-        try {
-          const content = fs.readFileSync(path.join(PROJECTS_DIR, f), 'utf-8')
-          const project = JSON.parse(content)
-          return project
-        } catch {
-          return null
-        }
-      })
-      .filter(p => p !== null)
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    res.json(projects)
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
-})
-
-app.get('/api/projects/:name', (req, res) => {
-  try {
-    const filePath = getProjectFilePath(req.params.name)
-    if (fs.existsSync(filePath)) {
-      const content = fs.readFileSync(filePath, 'utf-8')
-      res.json(JSON.parse(content))
-    } else {
-      res.status(404).json({ error: '项目不存在' })
-    }
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
-})
-
-app.post('/api/projects', (req, res) => {
-  try {
-    const project = req.body
-    if (!project || !project.name) {
-      return res.status(400).json({ error: '项目名称不能为空' })
-    }
-    const filePath = getProjectFilePath(project.name)
-    fs.writeFileSync(filePath, JSON.stringify(project, null, 2), 'utf-8')
-    res.json({ success: true, project })
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
-})
-
-app.put('/api/projects/:name', (req, res) => {
-  try {
-    const project = req.body
-    const filePath = getProjectFilePath(req.params.name)
-    if (fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, JSON.stringify(project, null, 2), 'utf-8')
-      res.json({ success: true, project })
-    } else {
-      res.status(404).json({ error: '项目不存在' })
-    }
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
-})
-
-app.delete('/api/projects/:name', (req, res) => {
-  try {
-    const filePath = getProjectFilePath(req.params.name)
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath)
-      res.json({ success: true })
-    } else {
-      res.status(404).json({ error: '项目不存在' })
-    }
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
 })
 
 app.post('/api/topics/:topic/publish', (req, res) => {
@@ -1197,6 +1123,7 @@ async function startOfflineHotspot() {
       console.log(`\x1b[36m[复用] 检测到符合格式的热点: ${runningSSID}，保留SSID并创建配置文件\x1b[0m`)
       existingConfig.ssid = runningSSID
       existingConfig.password = generateRandomString(8)
+      existingConfig.channel = [1, 6, 11][Math.floor(Math.random() * 3)]
       existingConfig.restartCount = 0
       saveApConfig(existingConfig)
     }
@@ -1220,7 +1147,7 @@ async function startOfflineHotspot() {
   }
   
   const apConfig = getOrGenerateApConfig()
-  apHotspotStarted = startHostedNetwork(apConfig.ssid, apConfig.password)
+  apHotspotStarted = startHostedNetwork(apConfig.ssid, apConfig.password, apConfig.channel || 6)
   
   if (apHotspotStarted) {
     console.log('[托管网络] 等待WiFi热点就绪（最多等待5秒）...')
@@ -1369,6 +1296,7 @@ httpServer.listen(WEB_PORT, '0.0.0.0', () => {
     }
     console.log(`\x1b[36m  WiFi名称: ${apConfig.ssid}\x1b[0m`)
     console.log(`\x1b[36m  WiFi密码: ${apConfig.password}\x1b[0m`)
+    console.log(`\x1b[36m  WiFi信道: ${apConfig.channel || 6}\x1b[0m`)
     console.log(`\x1b[36m  本机访问:  http://localhost:${WEB_PORT}\x1b[0m`)
     if (apHotspotStarted && hotspotIP) {
       console.log(`\x1b[36m  设备IP:    http://${esp32IP}:${WEB_PORT}（设备需连接上方WiFi）\x1b[0m`)

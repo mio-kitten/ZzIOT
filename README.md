@@ -3,10 +3,10 @@
 # ZzIOT 
 ### > 一个物联网数据可视化面板 + 本地内网创建服务(包括无网) 的集合体工具 <
 ---
-[![version](https://img.shields.io/badge/version-v2.4.0-Y-blue)](https://github.com/mio-kitten/zziot)
-[![platform](https://img.shields.io/badge/platform-Windows%2010%2B-green)](https://github.com/mio-kitten/zziot)
+[![version](https://img.shields.io/badge/V2.4.1*Y-orange)](https://github.com/mio-kitten/zziot)
+[![platform](https://img.shields.io/badge/Windows%2010%2B-red)](https://github.com/mio-kitten/zziot)
+[![Node.js](https://img.shields.io/badge/Node.js-339933)](https://nodejs.org/)
 [![Vue](https://img.shields.io/badge/Vue%203-4FC08D)](https://vuejs.org/)
-[![Electron](https://img.shields.io/badge/Electron%2028+-47848F)](https://www.electronjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6)](https://www.typescriptlang.org/)
 
 </div>
@@ -17,11 +17,11 @@
 
 | 项目 | 详情 |
 | --- | --- |
-| **所用技术栈** | Vue 3、Electron 28+、TypeScript、Chart.js、MQTT.js、Vite |
+| **所用技术栈** | Node.js、Vue 3、TypeScript、Vite、Chart.js、MQTT.js、Express、Aedes |
 | **已支持的平台** | Windows 10 及以上X64 |
 | **组件数量** | 11 个 |
 | **状态** | 开发中 |
-|**版本** | V2.4.0-Y | 
+|**版本** | V2.4.1-Y | 
 
 ---
 
@@ -98,7 +98,7 @@
 
 #### 或
 
-### 用123云盘下载（V2.4.0-Y）：
+### 用123云盘下载（V2.4.1-Y）：
 
 [网盘链接（rar包体59.56 MB）](https://1842972489.share.123pan.cn/123pan/SJqUTd-M9Xe3)
 > 提取码：NOTH

@@ -30,7 +30,8 @@ const loading = ref(false)
 const errorMsg = ref('')
 const isOffline = ref(false)
 const hotspotStarted = ref(false)
-const apInfo = ref<{ ssid: string; password: string } | null>(null)
+const apInfo = ref<{ ssid: string; password: string; channel: number } | null>(null)
+const currentWifiSSID = ref('')
 const API_BASE = 'http://localhost:8080'
 
 const fetchStatus = async () => {
@@ -48,6 +49,7 @@ const fetchStatus = async () => {
     isOffline.value = data.isOffline || false
     hotspotStarted.value = data.hotspotStarted || false
     apInfo.value = data.apInfo || null
+    currentWifiSSID.value = data.currentWifiSSID || ''
     errorMsg.value = ''
   } catch {
     ip.value = '---.---.---'
@@ -161,24 +163,26 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="status-section" v-if="((isOffline || hotspotStarted) && apInfo)">
-          <div class="status-label">{{ hotspotStarted ? 'WiFi热点AP' : '模拟AP信息（无网模式）' }}</div>
+        <div class="status-section" v-if="apInfo && isOffline">
+          <div class="status-label">WiFi信息</div>
           <div class="ap-info-banner">
             <div class="ap-warning">
-              {{ hotspotStarted ? '✓ 真实WiFi热点已创建（AP模式）' : '⚠ 当前电脑无网络连接，已启用模拟AP模式' }}
+              {{ isOffline ? '模拟AP已创建（无网模式）' : 'WiFi热点已创建' }}
             </div>
             <div class="ap-info-row">
               <span class="ap-info-label">WiFi名称</span>
-              <span class="ap-info-value ap-ssid">{{ apInfo.ssid }}</span>
+              <span class="ap-info-value ap-ssid">{{ isOffline ? apInfo.ssid : currentWifiSSID }}</span>
             </div>
-            <div class="ap-info-row">
+            <div class="ap-info-row" v-if="isOffline">
               <span class="ap-info-label">WiFi密码</span>
               <span class="ap-info-value ap-password">{{ apInfo.password }}</span>
             </div>
-            <div class="ap-info-note">
-              本机请通过 <strong>http://localhost:{{ webPort }}</strong> 访问数据管理页面。<br>
-              设备连接 ↓ ↓ ↓
-              <div v-if="!hotspotStarted && isOffline" class="ap-fail-tip">
+            <div class="ap-info-row" v-if="isOffline">
+              <span class="ap-info-label">WiFi信道</span>
+              <span class="ap-info-value">{{ apInfo.channel }}</span>
+            </div>
+            <div v-if="!hotspotStarted && isOffline" class="ap-info-note">
+              <div class="ap-fail-tip">
                 <br><strong>提示：WiFi热点创建失败，请检查是否以管理员身份运行此程序。</strong>
               </div>
             </div>
@@ -221,7 +225,7 @@ onUnmounted(() => {
       <div class="modal-footer">
         <button class="btn btn-secondary" @click="handleClose">关闭</button>
         <button
-          class="btn"
+          class="btn btn-toggle"
           :class="brokerRunning ? 'btn-danger' : 'btn-success'"
           :disabled="loading"
           @click="toggleBroker"
@@ -455,6 +459,8 @@ onUnmounted(() => {
 .btn-success { background-color: #66bb6a; color: #fff; }
 
 .btn-danger { background-color: #ef5350; color: #fff; }
+
+.btn-toggle { min-width: 120px; }
 
 .ap-info-banner {
   margin-top: 8px;
