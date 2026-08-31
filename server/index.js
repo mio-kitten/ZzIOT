@@ -117,9 +117,6 @@ function force24GHzBand() {
 }
 
 function startHostedNetwork(ssid, password) {
-  // 先强制设置2.4GHz频段
-  force24GHzBand()
-  
   // 方式1：传统托管网络（netsh wlan hostednetwork）- 强制2.4GHz
   try {
     execSync(`netsh wlan set hostednetwork mode=allow ssid="${ssid}" key="${password}" channel=6`, {
@@ -538,7 +535,7 @@ function getOrGenerateApConfig() {
   const prevCount = config.restartCount || 0
   config.restartCount = prevCount + 1
   
-  const willReset = !config.ssid || !config.password || config.restartCount > 10
+  const willReset = !config.ssid || !config.password || config.restartCount > 20
   
   if (willReset) {
     // 重置确认：不分系统，输入 iot 确认
@@ -564,13 +561,13 @@ function getOrGenerateApConfig() {
       return config
     }
     
-    config.ssid = `IoT-AP-${generateRandomString(6)}`
+    config.ssid = `IoT-AP-${generateRandomString(6)}${String(Math.floor(Math.random() * 100)).padStart(2, '0')}`
     config.password = generateRandomString(8)
     config.restartCount = 0
     console.log(`\x1b[91m已重置，请注意更改配置\x1b[0m`)
     console.log(`\x1b[36m[无网AP] 生成新的随机WiFi: ${config.ssid} 密码: ${config.password}\x1b[0m`)
   } else {
-    const remaining = 10 - prevCount
+    const remaining = 20 - prevCount
     console.log('')
     console.log(`\x1b[91m断网AP重启${remaining}次后会重置WiFi名称、密码\x1b[0m`)
     console.log(`\x1b[36m[无网AP] 使用已有的WiFi: ${config.ssid} 密码: ${config.password}\x1b[0m`)
@@ -1167,10 +1164,49 @@ let apHotspotStarted = false
 let hotspotIP = null
 let wifiDirectKeepAlive = null
 
+const SSID_PATTERN = /^IoT-AP-[A-Za-z0-9]{6}\d{2}$/
+
+function getHostedNetworkSSID() {
+  try {
+    const result = execSync('netsh wlan show hostednetwork', {
+      encoding: 'utf-8', stdio: 'pipe', timeout: 5000
+    })
+    const match = result.match(/SSID\s*(?:名称|name)?\s*:\s*"([^"]+)"/i)
+    return match ? match[1] : null
+  } catch {
+    return null
+  }
+}
+
 async function startOfflineHotspot() {
+  const hotspotRunning = isHotspotAlreadyRunning()
+  const existingConfig = loadApConfig()
+
+  // 热点已运行且有配置文件 → 直接复用，跳过关闭/重建
+  if (hotspotRunning && existingConfig.ssid && existingConfig.password) {
+    console.log(`\x1b[32m[复用] 热点已运行，跳过重建: ${existingConfig.ssid}\x1b[0m`)
+    apHotspotStarted = true
+    hotspotIP = getLocalIP()
+    return
+  }
+
+  // 热点已运行但无配置文件（如刚解压压缩包）→ 尝试获取SSID
+  if (hotspotRunning && !existingConfig.ssid) {
+    const runningSSID = getHostedNetworkSSID()
+    if (runningSSID && SSID_PATTERN.test(runningSSID)) {
+      console.log(`\x1b[36m[复用] 检测到符合格式的热点: ${runningSSID}，保留SSID并创建配置文件\x1b[0m`)
+      existingConfig.ssid = runningSSID
+      existingConfig.password = generateRandomString(8)
+      existingConfig.restartCount = 0
+      saveApConfig(existingConfig)
+    }
+    // SSID不符合格式或无法获取 → 继续走重建流程
+  }
+
+  // 需要重建热点
   console.log(`\x1b[90m[启动前] 清理已有热点，避免干扰...\x1b[0m`)
   stopHostedNetwork()
-  
+
   console.log('\x1b[36m[启动前] 强制设置2.4GHz频段（ESP32兼容）...\x1b[0m')
   force24GHzBand()
   

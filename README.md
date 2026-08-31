@@ -3,7 +3,7 @@
 # ZzIOT 
 ### > 一个物联网数据可视化面板 + 本地内网创建服务(包括无网) 的集合体工具 <
 ---
-[![version](https://img.shields.io/badge/version-v2.3.26.820-blue)](https://github.com/mio-kitten/zziot)
+[![version](https://img.shields.io/badge/version-v2.4.0-Y-blue)](https://github.com/mio-kitten/zziot)
 [![platform](https://img.shields.io/badge/platform-Windows%2010%2B-green)](https://github.com/mio-kitten/zziot)
 [![Vue](https://img.shields.io/badge/Vue%203-4FC08D)](https://vuejs.org/)
 [![Electron](https://img.shields.io/badge/Electron%2028+-47848F)](https://www.electronjs.org/)
@@ -21,7 +21,7 @@
 | **已支持的平台** | Windows 10 及以上X64 |
 | **组件数量** | 11 个 |
 | **状态** | 开发中 |
-|**版本** | V2.3.26.820 | 
+|**版本** | V2.4.0-Y | 
 
 ---
 
@@ -31,7 +31,7 @@
 
 ## 🪁项目简介
 
-- 本项目是一个基于 Vue 3 + Electron 开发的物，用于显示和分析物联网设备的数据与搭建内网服务的集合体工具，基本符合物/互联网比赛的相关要求，还能创建在断网状态的本地内网以供使用；
+- 本项目是一个用于显示和分析物联网设备的数据与搭建内网服务的集合体工具，基本符合物/互联网比赛的相关要求，还能创建在断网状态的本地内网以供使用；
 - 本项目特大部分的代码来自于AI模型(模型都经过了训练)，可视化面板的各个功能灵感来自mind+，总体可以说是一个AI作品，但是我有在对项目进行优化，以确保使用的体验，做这个不只是为了别人，更是为了我也能更好使用，谢谢大家的理解QWQ
 
 -----------------
@@ -98,7 +98,7 @@
 
 #### 或
 
-### 用123云盘下载（V2.3.26.820）：
+### 用123云盘下载（V2.4.0-Y）：
 
 [网盘链接（rar包体59.56 MB）](https://1842972489.share.123pan.cn/123pan/SJqUTd-M9Xe3)
 > 提取码：NOTH

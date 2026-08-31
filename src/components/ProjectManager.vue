@@ -23,6 +23,7 @@ const emit = defineEmits<{
 const showCreateModal = ref(false)
 const newProjectName = ref('')
 const deleteConfirmProjectId = ref<string | null>(null)
+const isHoveringProject = ref(false)
 
 const showRenameModal = ref(false)
 const renameProjectId = ref<string | null>(null)
@@ -63,6 +64,14 @@ const justFinishedDrag = ref(false)
 const dragOffsetY = ref(0)
 const animatingIndex = ref<number | null>(null)
 let dragEl: HTMLElement | null = null
+
+const onProjectEnter = () => {
+  isHoveringProject.value = true
+}
+
+const onProjectLeave = () => {
+  isHoveringProject.value = false
+}
 
 const canInteract = () => {
   return !justFinishedDrag.value
@@ -467,6 +476,7 @@ onUnmounted(() => {
 
 <template>
   <div class="project-manager">
+    <div class="drag-hint-bar" :class="{ visible: isHoveringProject }">长按拖动项目可改变位置</div>
     <div class="project-list-container">
       <TransitionGroup name="project-list" tag="div" class="projects-wrapper" appear>
         <div
@@ -484,6 +494,8 @@ onUnmounted(() => {
             animationDelay: index * 0.08 + 's',
           }"
           @mousedown.prevent="onMouseDown($event, index)"
+          @mouseenter="onProjectEnter"
+          @mouseleave="onProjectLeave"
           :data-project-id="project.id"
         >
           <div class="project-info" @click="canInteract() && emit('select', project.id)">
@@ -593,7 +605,8 @@ onUnmounted(() => {
   width: 100vw;
   height: calc(100vh - 48px);
   background-color: #f0f2f5;
-  padding-top: 48px;
+  padding-top: 20px;
+  position: relative;
 }
 
 .project-list-container {
@@ -807,6 +820,29 @@ onUnmounted(() => {
 .project-info p {
   font-size: 12px;
   color: #999;
+}
+
+.drag-hint-bar {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  color: #9c27b0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  padding: 0;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.25s;
+  z-index: 100;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.drag-hint-bar.visible {
+  opacity: 1;
 }
 
 .project-actions {
