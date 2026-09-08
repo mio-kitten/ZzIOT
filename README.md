@@ -70,11 +70,13 @@
    - 本项目基于 Vue 与 Node.js 开发，需要浏览器支持
    - 因为 Node.js v26 安装需要 Windows 10 或更高版本且无 X86 版本的安装包（32位），本项目理应只支持 Windows 10 及以上 X64 版本
 
-**4.** 组件支持：能力有限，目前仅实现了 11 个组件：
+**4.** 组件支持：能力有限，目前仅实现了 13 个组件：
    - BarChartWidget（柱状图）
    - ButtonWidget（按钮）
    - DecorativeTextWidget（文本）
+   - ImageWidget（图片）
    - InputWidget（输入框）
+   - LightWidget（灯）
    - LineChartWidget（折线图）
    - MiniAreaWidget（迷你面积图）
    - RadioWidget（单选框）
