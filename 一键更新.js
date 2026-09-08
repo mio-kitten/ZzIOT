@@ -49,23 +49,27 @@ function httpGet(url, redirects = 0) {
   })
 }
 
-function downloadFile(url, destPath) {
+function downloadFile(url, destPath, redirects = 0) {
+  if (redirects > 5) return Promise.reject(new Error('重定向过多'))
   return new Promise((resolve, reject) => {
     const mod = url.startsWith('https') ? https : http
     const file = fs.createWriteStream(destPath)
     let total = 0
     let downloaded = 0
     let lastPct = -1
-    mod.get(url, { headers: { 'User-Agent': 'ZzIOT-Updater' } }, (res) => {
+    let timedOut = false
+
+    const req = mod.get(url, { headers: { 'User-Agent': 'ZzIOT-Updater' } }, (res) => {
+      if (timedOut) return
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         file.close()
         try { fs.unlinkSync(destPath) } catch (e) { /* ignore */ }
-        return downloadFile(res.headers.location, destPath).then(resolve, reject)
+        return downloadFile(res.headers.location, destPath, redirects + 1).then(resolve, reject)
       }
       if (res.statusCode !== 200) {
         file.close()
         try { fs.unlinkSync(destPath) } catch (e) { /* ignore */ }
-        return reject(new Error('下载失败 HTTP ' + res.statusCode))
+        return reject(new Error('HTTP ' + res.statusCode))
       }
       total = parseInt(res.headers['content-length'] || '0', 10)
       res.on('data', (chunk) => {
@@ -84,7 +88,24 @@ function downloadFile(url, destPath) {
         process.stdout.write('\n')
         resolve()
       })
-    }).on('error', (err) => {
+      res.on('error', (err) => {
+        if (timedOut) return
+        file.close()
+        try { fs.unlinkSync(destPath) } catch (e) { /* ignore */ }
+        reject(err)
+      })
+    })
+
+    req.setTimeout(30000, () => {
+      timedOut = true
+      req.destroy()
+      file.close()
+      try { fs.unlinkSync(destPath) } catch (e) { /* ignore */ }
+      reject(new Error('连接超时(30s)'))
+    })
+
+    req.on('error', (err) => {
+      if (timedOut) return
       file.close()
       try { fs.unlinkSync(destPath) } catch (e) { /* ignore */ }
       reject(err)
@@ -208,12 +229,6 @@ async function main() {
     return
   }
 
-  // 使用镜像站
-  const downloadPathGh = downloadPath.replace('https://github.com/', '')
-  const bestUrl = 'https://ghproxy.com/https://github.com/' + downloadPathGh
-  console.log('')
-  console.log('正在通过 ghproxy 加速 下载更新包...')
-
   // 下载
   const tempDir = process.env.TEMP || process.env.TMP || '.'
   const ext = downloadPath.match(/\.(zip|7z|rar)(\?|$)/i)
@@ -221,11 +236,38 @@ async function main() {
   const zipFile = path.join(tempDir, 'zziot_update.' + suffix)
   const extractDir = path.join(tempDir, 'zziot_extract')
 
-  try {
-    await downloadFile(bestUrl, zipFile)
-  } catch (e) {
-    console.log('下载失败: ' + (e.message || e))
-    console.log('请稍后重试或手动下载更新。')
+  // 多镜像 + 直连兜底，依次尝试
+  const downloadPathGh = downloadPath.replace('https://github.com/', '')
+  const MIRRORS = [
+    { name: '直连 GitHub', url: downloadPath },
+    { name: 'ghproxy 线路1', url: 'https://ghproxy.com/https://github.com/' + downloadPathGh },
+    { name: 'ghproxy 线路2', url: 'https://mirror.ghproxy.com/https://github.com/' + downloadPathGh },
+  ]
+
+  let downloadSuccess = false
+  for (let i = 0; i < MIRRORS.length; i++) {
+    const mirror = MIRRORS[i]
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      console.log('')
+      console.log('[' + mirror.name + '] 下载中... (第' + attempt + '次尝试)')
+      try {
+        await downloadFile(mirror.url, zipFile)
+        downloadSuccess = true
+        break
+      } catch (e) {
+        console.log('[' + mirror.name + '] 失败: ' + (e.message || e))
+        if (attempt < 2) {
+          console.log('等待 2 秒后重试...')
+          await new Promise(r => setTimeout(r, 2000))
+        }
+      }
+    }
+    if (downloadSuccess) break
+  }
+
+  if (!downloadSuccess) {
+    console.log('')
+    console.log('所有下载方式均失败，请检查网络或手动下载更新。')
     return
   }
 
