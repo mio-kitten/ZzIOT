@@ -1,0 +1,138 @@
+harmonyos-sans-sc-webfont-splitted
+HarmonyOS Sans SC Webfont Splitted.
+Version 1.1.0 published 2025-06-06 by sunmkt
+Maintainers: sunmkt
+https://npm.im/harmonyos-sans-sc-webfont-splitted
+
+harmonyos-sans-webfont-splitted
+HarmonyOS Sans Webfont Splitted by KonghaYao/cn-font-split.
+Version 1.2.1 published 2025-10-29 by sunmkt
+Maintainers: sunmkt
+https://npm.im/harmonyos-sans-webfont-splitted
+
+harmonyos-sans
+Huawei HarmonyOS Sans fonts. This NPM package provides you the "HarmonyOS Sans.zip" file from Huawei website (https://developer.harmonyos.com/cn/docs/design/des-guides/font-0000001157868583).
+Version 1.0.0 published 2023-02-26 by mobiledesres
+Maintainers: mobiledesres
+Keywords: Huawei HarmonyOS HarmonyOS Sans
+https://npm.im/harmonyos-sans
+
+@lobehub/webfont-harmony-sans-sc
+Webfont HarmonyOS Sans SC for LobeHub
+Version 1.0.0 published 2023-06-20 by canisminor1990
+Maintainers: sudongyuer yutengjing amazing129 arvinxx canisminor1990 lobehubbot nekomeowww rdmclin2 blueboylijian
+Keywords: webfont
+https://npm.im/@lobehub/webfont-harmony-sans-sc
+
+@fontpkg/harmony-os-sans-sc
+Font package for HarmonyOS Sans SC
+Version 1.0.3 published 2025-12-29 by moonvy
+Maintainers: moonvy
+Keywords: font fonts harmony-os-sans-sc HarmonyOS Sans SC
+https://npm.im/@fontpkg/harmony-os-sans-sc
+
+@lobehub/webfont-harmony-sans
+Webfont HarmonyOS Sans for LobeHub
+Version 1.0.0 published 2023-06-20 by canisminor1990
+Maintainers: sudongyuer yutengjing amazing129 arvinxx canisminor1990 lobehubbot nekomeowww rdmclin2 blueboylijian
+Keywords: webfont
+https://npm.im/@lobehub/webfont-harmony-sans
+
+koishi-plugin-to-image-service-font-harmonyos-sans-sc
+Provide HarmonyOS Sans SC fonts for the to-image-service
+Version 0.0.6 published 2026-01-24 by rzgtboeyndxsklmq
+Maintainers: rzgtboeyndxsklmq
+Keywords: chatbot koishi plugin to-image-service font HarmonyOS Sans SC
+https://npm.im/koishi-plugin-to-image-service-font-harmonyos-sans-sc
+
+koishi-plugin-vercel-satori-png-service-font-harmonyos-sans-sc
+Provide HarmonyOS Sans SC fonts for the vercel-satori-png-service
+Version 0.0.1 published 2025-01-13 by rzgtboeyndxsklmq
+Maintainers: rzgtboeyndxsklmq
+Keywords: chatbot koishi plugin vercel-satori-png-service font HarmonyOS Sans SC
+https://npm.im/koishi-plugin-vercel-satori-png-service-font-harmonyos-sans-sc
+
+@ayahub/webfont-harmony-sans-sc
+Webfont HarmonyOS Sans SC for AyaHub
+Version 1.0.0 published 2024-01-13 by tnga
+Maintainers: tnga
+Keywords: webfont
+https://npm.im/@ayahub/webfont-harmony-sans-sc
+
+@lobehub/webfont-harmony-sans-sc-mini
+Subset webfont HarmonyOS Sans SC for LobeHub
+Version 1.0.0 published 2026-06-11 by lobehubbot
+Maintainers: sudongyuer yutengjing amazing129 arvinxx canisminor1990 lobehubbot nekomeowww rdmclin2 blueboylijian
+Keywords: webfont
+https://npm.im/@lobehub/webfont-harmony-sans-sc-mini
+
+@fontpkg/harmony-os-sans
+Font package for HarmonyOS Sans
+Version 1.0.3 published 2025-12-29 by moonvy
+Maintainers: moonvy
+Keywords: font fonts harmony-os-sans HarmonyOS Sans
+https://npm.im/@fontpkg/harmony-os-sans
+
+@fontpkg/harmony-os-sans-condensed
+Font package for HarmonyOS Sans Condensed
+Version 1.0.3 published 2025-12-29 by moonvy
+Maintainers: moonvy
+Keywords: font fonts harmony-os-sans-condensed HarmonyOS Sans Condensed
+https://npm.im/@fontpkg/harmony-os-sans-condensed
+
+@arietta-studio/webfont-harmony-sans-sc
+Web font HarmonyOS Sans SC for Arietta Studio
+Version 1.0.3 published 2024-03-15 by gince
+Maintainers: gince
+Keywords: webfont
+https://npm.im/@arietta-studio/webfont-harmony-sans-sc
+
+@arietta-studio/webfont-harmony-sans
+Web font HarmonyOS Sans for Arietta Studio
+Version 1.0.3 published 2024-03-15 by gince
+Maintainers: gince
+Keywords: webfont
+https://npm.im/@arietta-studio/webfont-harmony-sans
+
+@fontpkg/harmony-os-sans-tc
+Font package for HarmonyOS Sans TC
+Version 1.0.0 published 2025-12-25 by moonvy
+Maintainers: moonvy
+Keywords: font fonts harmony-os-sans-tc HarmonyOS Sans TC
+https://npm.im/@fontpkg/harmony-os-sans-tc
+
+@fontsource/open-sans
+Self-host the Open Sans font in a neatly bundled NPM package.
+Version 5.3.0 published 2026-07-19 by lotusdevshack
+Maintainers: jwr1 lotusdevshack
+Keywords: fontsource font font family google fonts open-sans Open Sans css sass front-end web typeface variable
+https://npm.im/@fontsource/open-sans
+
+geist
+Geist is a new font family for Vercel, created by Vercel in collaboration with Basement Studio.
+Version 1.7.2 published 2026-06-01 by GitHub Actions
+Maintainers: vercel-release-bot zeit-bot
+Keywords: geist geist mono geist sans geist pixel vercel font
+https://npm.im/geist
+
+@fontsource/ibm-plex-sans
+Self-host the IBM Plex Sans font in a neatly bundled NPM package.
+Version 5.3.0 published 2026-07-19 by lotusdevshack
+Maintainers: jwr1 lotusdevshack
+Keywords: fontsource font font family google fonts ibm-plex-sans IBM Plex Sans css sass front-end web typeface variable
+https://npm.im/@fontsource/ibm-plex-sans
+
+@fontsource/dm-sans
+Self-host the DM Sans font in a neatly bundled NPM package.
+Version 5.3.0 published 2026-07-19 by lotusdevshack
+Maintainers: jwr1 lotusdevshack
+Keywords: fontsource font font family google fonts dm-sans DM Sans css sass front-end web typeface variable
+https://npm.im/@fontsource/dm-sans
+
+@fontsource-variable/plus-jakarta-sans
+Self-host the Plus Jakarta Sans font in a neatly bundled NPM package.
+Version 5.3.0 published 2026-07-19 by lotusdevshack
+Maintainers: jwr1 lotusdevshack
+Keywords: fontsource font font family google fonts plus-jakarta-sans Plus Jakarta Sans css sass front-end web typeface variable
+https://npm.im/@fontsource-variable/plus-jakarta-sans
+

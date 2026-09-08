@@ -692,6 +692,20 @@ function saveData(topics) {
   fs.writeFileSync(getDataFilePath(), JSON.stringify(topics, null, 2), 'utf-8')
 }
 
+function publishTopicListUpdate() {
+  if (!broker) return
+  const topics = loadData()
+  const topicNames = topics
+    .filter(t => t.topic !== '系统信息' && !t.topic.startsWith('$SYS/'))
+    .map(t => t.topic)
+  broker.publish({
+    topic: '$system/topics',
+    payload: JSON.stringify(topicNames),
+    qos: 0,
+    retain: false
+  }, () => {})
+}
+
 function addSystemMessage(payload) {
   const topics = loadData()
   const sysTopic = topics.find(t => t.topic === '系统信息')
@@ -763,25 +777,17 @@ async function startBroker() {
   })
 
   broker.on('publish', (packet, client) => {
-    if (packet.topic && packet.payload && !packet.topic.startsWith('$SYS/')) {
+    if (packet.topic && packet.payload && !packet.topic.startsWith('$SYS/') && !packet.topic.startsWith('$system/')) {
       const topics = loadData()
       const topicName = packet.topic
       const payload = packet.payload.toString()
 
       const existing = topics.find(t => t.topic === topicName)
+      if (!existing) return
       const message = { timestamp: Date.now(), payload }
-      if (existing) {
-        existing.messages.push(message)
-        if (existing.messages.length > 500) {
-          existing.messages = existing.messages.slice(-500)
-        }
-      } else {
-        const newTopic = {
-          topic: topicName,
-          mode: 'siot',
-          messages: [message]
-        }
-        topics.push(newTopic)
+      existing.messages.push(message)
+      if (existing.messages.length > 500) {
+        existing.messages = existing.messages.slice(-500)
       }
       saveData(topics)
     }
@@ -960,6 +966,7 @@ app.delete('/api/topics/:topic', (req, res) => {
   let topics = loadData()
   topics = topics.filter(t => t.topic !== req.params.topic)
   saveData(topics)
+  publishTopicListUpdate()
   res.json({ success: true })
 })
 
@@ -978,6 +985,23 @@ app.delete('/api/topics/:topic/messages', (req, res) => {
 app.delete('/api/topics', (req, res) => {
   const sysTopic = loadData().find(t => t.topic === '系统信息')
   saveData(sysTopic ? [sysTopic] : [])
+  publishTopicListUpdate()
+  res.json({ success: true })
+})
+
+app.post('/api/topics', (req, res) => {
+  const { topic: topicName } = req.body
+  if (!topicName || !topicName.trim()) {
+    return res.status(400).json({ error: '主题名称不能为空' })
+  }
+  const name = topicName.trim()
+  const topics = loadData()
+  if (topics.find(t => t.topic === name)) {
+    return res.status(409).json({ error: '主题已存在' })
+  }
+  topics.push({ topic: name, mode: 'siot', messages: [] })
+  saveData(topics)
+  publishTopicListUpdate()
   res.json({ success: true })
 })
 
@@ -989,10 +1013,9 @@ app.post('/api/topics/:topic/publish', (req, res) => {
   const topicName = req.params.topic
 
   const topics = loadData()
-  let existingTopic = topics.find(t => t.topic === topicName)
+  const existingTopic = topics.find(t => t.topic === topicName)
   if (!existingTopic) {
-    topics.push({ topic: topicName, mode: 'siot', messages: [] })
-    saveData(topics)
+    return res.status(404).json({ error: '主题不存在，请先手动创建主题' })
   }
 
   if (broker) {
@@ -1056,30 +1079,54 @@ app.post('/api/test/publish', async (req, res) => {
 
 // 启动时：先检测断网，关闭已有热点（避免干扰新AP创建），再创建真实WiFi热点
 
-// Windows 11 检测：提示用户手动设置2.4GHz频段
+// Windows 10/11 检测：提示用户手动设置2.4GHz频段
 // 使用 PowerShell Read-Host 阻塞等待（npm run 会吃掉 Node.js 的 stdin）
+// 用户输入 IOT → 正常继续；输入 ZZIOT（不区分大小写）→ 永久不再提示
 function checkWin11AndPrompt() {
   try {
     const release = os.release()
     const buildNumber = parseInt(release.split('.')[2]) || 0
+    const isWin10 = buildNumber >= 10240 && buildNumber < 22000
+    const isWin11 = buildNumber >= 22000
     
     // 只有无网模式下才需要提示（有网时不需要创建热点）
-    if (buildNumber >= 22000 && isOffline()) {
+    if ((isWin10 || isWin11) && isOffline()) {
+      // 检查用户是否已选择"不再提示"
+      const apConfig = loadApConfig()
+      if (apConfig.skip2_4GHzWarning) {
+        return
+      }
+      
+      const winVer = isWin11 ? 'Windows 11' : 'Windows 10'
       console.log('')
       console.log('\x1b[43m\x1b[30m' + '='.repeat(60) + '\x1b[0m')
-      console.log('\x1b[43m\x1b[30m  ⚠️  检测到 Windows 11 系统\x1b[0m')
+      console.log(`\x1b[43m\x1b[30m  ⚠️  检测到 ${winVer} 系统\x1b[0m`)
       console.log('\x1b[43m\x1b[30m' + '='.repeat(60) + '\x1b[0m')
       console.log('')
-      console.log('\x1b[33m  ESP32 只能连接 2.4GHz WiFi，但 Win11 默认可能创建 5GHz 热点！\x1b[0m')
+      console.log('\x1b[33m  ESP32 只能连接 2.4GHz WiFi，但系统默认可能创建 5GHz 热点！\x1b[0m')
       console.log('')
       console.log('\x1b[36m  请手动设置（否则主板无法连接）：\x1b[0m')
       console.log('\x1b[36m  Windows 设置 → 网络和 Internet → 移动热点 → 高级设置\x1b[0m')
       console.log('\x1b[36m  将 "频段" 从 "任何可用" 改为 "2.4 GHz"\x1b[0m')
       console.log('')
+      console.log('\x1b[37m  输入 IOT 继续  |  输入 ZZIOT（不区分大小写）不再提示\x1b[0m')
+      console.log('')
       
-      execSync('powershell -NoProfile -Command "Write-Host \'  设置好后请输入 IOT 继续: \' -ForegroundColor Green -NoNewline; $input = Read-Host; if ($input -eq \'IOT\') { Write-Host \'  ✓ 收到！正在启动内网服务...\' -ForegroundColor Green; Write-Host \'\' } else { Write-Host \'  ℹ 已继续（请确保已设置为2.4GHz）\' -ForegroundColor Yellow; Write-Host \'\' }"', {
-        stdio: 'inherit'
-      })
+      let skipFuture = false
+      try {
+        execSync('powershell -NoProfile -Command "Write-Host \'  请输入: \' -ForegroundColor Green -NoNewline; $input = Read-Host; if ($input -eq \'ZZIOT\' -or $input -eq \'zziot\') { Write-Host \'  ✓ 收到！之后不再提示，正在启动内网服务...\' -ForegroundColor Green; Write-Host \'\'; exit 42 } elseif ($input -eq \'IOT\' -or $input -eq \'iot\') { Write-Host \'  ✓ 收到！正在启动内网服务...\' -ForegroundColor Green; Write-Host \'\'; exit 0 } else { Write-Host \'  ℹ 已继续（请确保已设置为2.4GHz）\' -ForegroundColor Yellow; Write-Host \'\'; exit 0 }"', {
+          stdio: 'inherit'
+        })
+      } catch (e) {
+        if (e.status === 42) {
+          skipFuture = true
+        }
+      }
+      
+      if (skipFuture) {
+        apConfig.skip2_4GHzWarning = true
+        saveApConfig(apConfig)
+      }
     }
   } catch (e) {
     // 忽略错误
@@ -1241,11 +1288,7 @@ async function startOfflineHotspot() {
       console.log(`\x1b[32m[检测] Windows 移动热点已运行，直接复用\x1b[0m`)
       apHotspotStarted = true
       hotspotIP = getLocalIP()
-      const apConfig = getApConfig()
       console.log(`\x1b[36m[信息] 热点IP: ${hotspotIP}\x1b[0m`)
-      if (apConfig.ssid) {
-        console.log(`\x1b[36m[信息] WiFi名称: ${apConfig.ssid}\x1b[0m`)
-      }
     } else {
       checkWin11AndPrompt()
     }
@@ -1269,8 +1312,8 @@ ensureSystemTopic()
 // 处理端口占用等错误，防止崩溃后触发热点清理
 httpServer.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    console.error(`\x1b[31m[错误] 端口 ${WEB_PORT} 已被占用，请先关闭正在运行的旧进程！\x1b[0m`)
-    console.error(`\x1b[31m       运行命令: taskkill /F /IM node.exe  或重启电脑\x1b[0m`)
+    console.error(`\x1b[33m[错误] 端口 ${WEB_PORT} 已被占用，\x1b[0m\x1b[94m请关闭正在运行的旧进程！\x1b[0m`)
+    console.error(`\x1b[94m       （关闭进程还不行）\x1b[0m\x1b[33m运行命令:  \x1b[0m\x1b[31mtaskkill /F /IM node.exe\x1b[0m\x1b[33m  或  \x1b[0m\x1b[31m重启电脑（真不行的办法）\x1b[0m`)
   } else {
     console.error(`\x1b[31m[错误] HTTP服务器启动失败: ${err.message}\x1b[0m`)
   }
@@ -1285,7 +1328,7 @@ httpServer.listen(WEB_PORT, '0.0.0.0', () => {
   console.log(`============================================`)
   console.log(`  IoT 内网服务已启动`)
   console.log(``)
-  if (offline || apHotspotStarted) {
+  if (offline) {
     const apConfig = getApConfig()
     if (offline && !apHotspotStarted) {
       console.log(`\x1b[33m  ⚠ 当前电脑无网络连接，已启用模拟AP模式\x1b[0m`)

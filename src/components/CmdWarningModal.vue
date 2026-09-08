@@ -136,12 +136,16 @@ const handleClose = () => {
 }
 
 .warning-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: #ffa940;
   color: #fff;
   border: none;
   border-radius: 6px;
-  padding: 8px 28px;
+  padding: 10px 32px;
   font-size: 14px;
+  line-height: 1.2;
   cursor: pointer;
   font-weight: 600;
   transition: background 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);

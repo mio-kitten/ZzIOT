@@ -12,15 +12,16 @@ export const getWidgetMinSize = (type: string): MinSize => {
     case 'lineChart':
     case 'barChart':    return { width: 200, height: 150 }
     case 'miniArea':    return { width: 150, height: 100 }
-    case 'textarea':    return { width: 150, height: 100 }
+    case 'textarea':    return { width: 200, height: 160 }
     case 'gauge':       return { width: 120, height: 120 }
     case 'text':
-    case 'lable':       return { width: 200, height: 180 }
+    case 'lable':       return { width: 200, height: 100 }
     case 'decorativeText': return { width: 150, height: 80 }
-    case 'button':      return { width: 120, height: 120 }
     case 'switch':      return { width: 120, height: 100 }
     case 'input':       return { width: 200, height: 80 }
     case 'radio':       return { width: 150, height: 100 }
+    case 'image':       return { width: 100, height: 100 }
+    case 'light':       return { width: 100, height: 100 }
     default:            return { width: 120, height: 80 }
   }
 }

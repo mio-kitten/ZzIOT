@@ -116,7 +116,6 @@ onUnmounted(() => {
     <div class="modal-content">
       <div class="modal-header">
         <h2>内网服务配置</h2>
-        <button class="close-btn" @click="handleClose">×</button>
       </div>
 
       <div class="modal-body">
@@ -436,11 +435,15 @@ onUnmounted(() => {
 }
 
 .btn {
-  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 18px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
+  line-height: 1.2;
   font-weight: 500;
   transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -460,7 +463,7 @@ onUnmounted(() => {
 
 .btn-danger { background-color: #ef5350; color: #fff; }
 
-.btn-toggle { min-width: 120px; }
+.btn-toggle { min-width: 90px; }
 
 .ap-info-banner {
   margin-top: 8px;

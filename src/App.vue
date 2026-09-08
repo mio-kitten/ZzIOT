@@ -19,6 +19,9 @@ import RippleEffect from './components/RippleEffect.vue'
 import NetworkConfigModal from './components/NetworkConfigModal.vue'
 import CmdWarningModal from './components/CmdWarningModal.vue'
 import ExportModal from './components/ExportModal.vue'
+import CheckUpdateModal from './components/CheckUpdateModal.vue'
+import UpdateToast from './components/UpdateToast.vue'
+import { checkForUpdates, getVersionTypeLabel } from './utils/updateChecker'
 import type { RippleItem } from './components/RippleEffect.vue'
 import { APP_VERSION } from './version'
 
@@ -50,6 +53,10 @@ const showProjectManager = ref(!currentProjectId.value)
 const showNetworkConfig = ref(false)
 const showCmdWarning = ref(true)
 const showExportModal = ref(false)
+const showCheckUpdate = ref(false)
+const showUpdateToast = ref(false)
+const updateToastType = ref<'update' | 'error'>('update')
+const toastData = ref({ versionType: '', newVersion: '', currentVersion: '' })
 const noProjectAlert = ref(false)
 const triggerCreateCount = ref(0)
 const selectedWidgetId = ref<string | null>(null)
@@ -61,13 +68,17 @@ const topicModes = ref<Record<string, string>>({})
 const topicOriginalTopics = ref<Record<string, string>>({})
 let topicModesInterval: number | null = null
 
+// 白名单：内网模式下只处理数据面板已创建的主题
+const allowedTopics = ref<Set<string>>(new Set())
+const isInternalMode = ref(false)
+
 const isFullscreen = ref(false)
 const showTopBar = ref(false)
 const scrollWrapperRef = ref<HTMLElement | null>(null)
 let topBarTimeout: number | null = null
 
 // 消息更新防抖延迟（毫秒），避免高频更新导致卡顿
-const MESSAGE_UPDATE_DELAY = 100
+const MESSAGE_UPDATE_DELAY = 300
 
 // 缓存最新的消息数据
 const pendingMessages = ref<Map<string, { topic: string; message: string }>>(new Map())
@@ -89,7 +100,24 @@ const flushPendingMessages = () => {
 const isSwitchCooldown = ref(false)
 
 const handleFullscreenChange = () => {
-  if (!document.fullscreenElement && isFullscreen.value) {
+  if (document.fullscreenElement && isFullscreen.value) {
+    // 浏览器已真实进入全屏，调整滚动位置（ResizeObserver 会自动更新绿框）
+    const wrap = scrollWrapperRef.value
+    if (!wrap) return
+    suppressMinimapCancel.value = true
+    if (savedViewCenter.value) {
+      wrap.scrollLeft = Math.max(0, savedViewCenter.value.x - wrap.clientWidth / 2)
+      wrap.scrollTop = Math.max(0, savedViewCenter.value.y - wrap.clientHeight / 2)
+      savedViewCenter.value = null
+    } else if (currentProject.value) {
+      // 降级：从项目管理直接进入全屏时，滚动到画布正中央
+      const canvasCenterX = 1500
+      const canvasCenterY = 1500
+      wrap.scrollLeft = Math.max(0, canvasCenterX - wrap.clientWidth / 2)
+      wrap.scrollTop = Math.max(0, canvasCenterY - wrap.clientHeight / 2)
+    }
+    setTimeout(() => { suppressMinimapCancel.value = false }, 300)
+  } else if (!document.fullscreenElement && isFullscreen.value) {
     showTopBar.value = false
     isFullscreen.value = false
     // 安全退出：清除选中组件、确保回到编辑界面
@@ -109,6 +137,13 @@ const savedEditScrollPos = ref<{ left: number; top: number } | null>(null)
 /** 全屏（查看模式）时保持与编辑模式相同的视口中心 */
 watch(isFullscreen, async (val) => {
   if (val) {
+    // 进入全屏：显示小地图 2s（ResizeObserver 会在容器尺寸变化时自动更新绿框）
+    await nextTick()
+    if (!isFullscreen.value) return
+    await new Promise(resolve => requestAnimationFrame(resolve))
+    if (!isFullscreen.value) return
+    triggerMinimapOnEntry()
+    
     // 进入全屏：顶栏自动滑下，停留 2.5s 后上移
     showTopBar.value = true
     if (topBarTimeout) {
@@ -118,37 +153,20 @@ watch(isFullscreen, async (val) => {
     topBarTimeout = window.setTimeout(() => {
       showTopBar.value = false
     }, 2500)
-    
-    if (!scrollWrapperRef.value) {
-      // 从项目管理进入时，scrollWrapperRef 尚未渲染，等待 DOM 更新
-      await nextTick()
-      if (!scrollWrapperRef.value) return
-    }
-    // 等待 DOM 更新（侧边栏隐藏等），确保 clientWidth/Height 为最终值
-    await nextTick()
-    const wrap = scrollWrapperRef.value
-    
-    if (savedViewCenter.value) {
-      // 使用进入全屏前保存的视口中心，避免因侧边栏隐藏导致内容偏移
-      wrap.scrollLeft = Math.max(0, savedViewCenter.value.x - wrap.clientWidth / 2)
-      wrap.scrollTop = Math.max(0, savedViewCenter.value.y - wrap.clientHeight / 2)
-      savedViewCenter.value = null
-    } else if (currentProject.value) {
-      // 降级：滚动到画布正中央（1500, 1500）
-      const canvasCenterX = 1500
-      const canvasCenterY = 1500
-      wrap.scrollLeft = Math.max(0, canvasCenterX - wrap.clientWidth / 2)
-      wrap.scrollTop = Math.max(0, canvasCenterY - wrap.clientHeight / 2)
-    }
   } else if (!val && scrollWrapperRef.value) {
     // 退出全屏回到编辑模式：恢复进入前的滚动位置
     await nextTick()
+    if (isFullscreen.value) return
+    await new Promise(resolve => requestAnimationFrame(resolve))
+    if (isFullscreen.value) return
     const wrap = scrollWrapperRef.value
+    suppressMinimapCancel.value = true
     if (savedEditScrollPos.value) {
       wrap.scrollLeft = savedEditScrollPos.value.left
       wrap.scrollTop = savedEditScrollPos.value.top
       savedEditScrollPos.value = null
     }
+    setTimeout(() => { suppressMinimapCancel.value = false }, 300)
   }
 })
 
@@ -201,7 +219,7 @@ watch(isConnected, (newVal, oldVal) => {
 
 // 监听连接中状态：连接失败（连接中结束但未连接上）
 watch(isConnecting, (newVal, oldVal) => {
-  if (oldVal && !newVal && !isConnected.value) {
+  if (oldVal && !newVal && !isConnected.value && !showProjectManager.value) {
     // 连接中结束但未连接上 → 失败光效
     triggerRipple('error')
     // 全屏模式下：强制弹出顶栏
@@ -218,7 +236,7 @@ watch(isConnecting, (newVal, oldVal) => {
   }
 })
 
-const getAllTopics = () => {
+const getAllTopics = (): string[] => {
   if (!currentProject.value) return []
   
   const userTopics = currentProject.value.widgets
@@ -270,6 +288,14 @@ const getAllTopics = () => {
         const config = w.config as { topic?: string }
         return config.topic ? [config.topic] : []
       }
+      if (w.type === 'radio') {
+        const config = w.config as { topic?: string }
+        return config.topic ? [config.topic] : []
+      }
+      if (w.type === 'light') {
+        const config = w.config as { topic?: string }
+        return config.topic ? [config.topic] : []
+      }
       return []
     })
   
@@ -291,13 +317,25 @@ const getAllTopics = () => {
     // 仅在主题真正变化时才重新订阅
     if (topicsStr === lastTopics) return
     
-    // 取消所有旧订阅
-    mqttClient.unsubscribeAll()
+    // 增量更新：只取消不再需要的，只订阅新增的，保持不变的主题不受影响
+    const oldTopics = lastTopics ? lastTopics.split(',').filter(Boolean) : []
+    const newTopics = topics
     
-    // 订阅新主题
-    if (topics.length > 0) {
-      mqttClient.subscribe(topics)
-      lastTopics = topicsStr
+    const toUnsubscribe = oldTopics.filter(t => !newTopics.includes(t))
+    const toSubscribe = newTopics.filter(t => !oldTopics.includes(t))
+    
+    if (toUnsubscribe.length > 0) {
+      mqttClient.unsubscribe(toUnsubscribe)
+    }
+    if (toSubscribe.length > 0) {
+      mqttClient.subscribe(toSubscribe)
+    }
+    
+    lastTopics = topicsStr
+    
+    // 内网模式下确保白名单更新主题已订阅
+    if (isInternalMode.value) {
+      mqttClient.subscribe(['$system/topics'])
     }
   }
 
@@ -316,23 +354,39 @@ watch(showEditor, async (val) => {
   if (!pid) return
 
   if (val) {
+    // 进入编辑模式：显示小地图 2s（rAF 等 DOM 布局完成后再算绿框尺寸）
+    await nextTick()
+    if (!showEditor.value) return
+    await new Promise(resolve => requestAnimationFrame(resolve))
+    if (!showEditor.value) return
+    updateEditorMinimap()
+    triggerMinimapOnEntry()
+    
     // 进入编辑模式
     const saved = savedScrollPosMap.value.get(pid)
     if (saved) {
       // 有保存的位置则恢复
       await nextTick()
+      if (!showEditor.value) return
       requestAnimationFrame(() => {
+        if (!showEditor.value) return
         const w = scrollWrapperRef.value
         if (!w) return
+        suppressMinimapCancel.value = true
         w.scrollTo({ left: saved.left, top: saved.top, behavior: 'smooth' })
+        setTimeout(() => { suppressMinimapCancel.value = false }, 2500)
       })
     } else {
       // 首次进入：滚到画布中心
       await nextTick()
+      if (!showEditor.value) return
       requestAnimationFrame(() => {
+        if (!showEditor.value) return
         const w = scrollWrapperRef.value
         if (!w) return
+        suppressMinimapCancel.value = true
         w.scrollTo({ left: Math.max(0, (w.scrollWidth - w.clientWidth) / 2), top: Math.max(0, (w.scrollHeight - w.clientHeight) / 2), behavior: 'smooth' })
+        setTimeout(() => { suppressMinimapCancel.value = false }, 2500)
       })
     }
   } else {
@@ -362,7 +416,25 @@ const connectToPlatform = async (config: PlatformConfig, isFromProjectSwitch = f
       throw new Error('连接失败')
     }
     
+    // 先设置消息回调，避免 isConnected 后到订阅前之间的消息丢失
+    mqttClient.setOnMessageCallback((topic: string, message: string) => {
+      if (topic === '$system/topics') {
+        try {
+          const names = JSON.parse(message)
+          allowedTopics.value = new Set(names)
+        } catch (e) { /* ignore parse error */ }
+        return
+      }
+      handleMessage(topic, message)
+    })
+    
     isConnected.value = true
+    
+    // 内网模式：初始化白名单
+    isInternalMode.value = config.platform === 'siot' && config.siot.port === 1853
+    if (isInternalMode.value) {
+      fetchAllowedTopics()
+    }
     
     fetchTopicModes()
     if (topicModesInterval) clearInterval(topicModesInterval)
@@ -380,14 +452,9 @@ const connectToPlatform = async (config: PlatformConfig, isFromProjectSwitch = f
       updateProject(currentProject.value.id, { platformConfig: config })
     }
     
-    mqttClient.setOnMessageCallback((topic: string, message: string) => {
-      handleMessage(topic, message)
-    })
-    
-    const topics = getAllTopics()
-    if (topics.length > 0) {
-      mqttClient.subscribe(topics)
-    }
+    // 重连后强制重新订阅所有主题
+    lastTopics = ''
+    updateSubscriptions()
     
     mqttClient.setOnStatusChange((connected) => {
       if (!connected && isConnected.value) {
@@ -440,7 +507,6 @@ const fetchTopicModes = async () => {
   try {
     const res = await fetch('http://localhost:8080/api/topics/modes?_=' + Date.now(), { cache: 'no-store' })
     const data = await res.json()
-    // 解析新的返回格式：{ topic: { mode, originalTopic } }
     Object.keys(data).forEach(topic => {
       topicModes.value[topic] = data[topic].mode || 'siot'
       topicOriginalTopics.value[topic] = data[topic].originalTopic || ''
@@ -450,7 +516,27 @@ const fetchTopicModes = async () => {
   }
 }
 
+const fetchAllowedTopics = async () => {
+  try {
+    const res = await fetch('http://localhost:8080/api/topics?_=' + Date.now(), { cache: 'no-store' })
+    const data = await res.json()
+    const names = data.map((t: any) => t.topic).filter((n: string) => n !== '系统信息')
+    allowedTopics.value = new Set(names)
+  } catch (e) {
+    console.warn('获取主题列表失败:', e)
+  }
+}
+
 const handleMessage = (topic: string, message: string) => {
+  if (!isConnected.value) return
+  
+  // 内网模式：白名单过滤，只处理数据面板已创建的主题
+  if (isInternalMode.value) {
+    const parts = topic.split('/')
+    const userTopic = parts[parts.length - 1]
+    if (!allowedTopics.value.has(topic) && !allowedTopics.value.has(userTopic)) return
+  }
+  
   // 将消息添加到待处理队列（防抖处理）
   pendingMessages.value.set(topic, { topic, message })
   
@@ -461,20 +547,23 @@ const handleMessage = (topic: string, message: string) => {
 }
 
 const processMessage = (topic: string, message: string) => {
-  // 从 项目ID/用户主题 格式中提取用户主题
+  // 从 项目ID/用户主题 或 私钥/主题 格式中提取用户主题
   let userTopic = topic
-  // 解析主题：Mixly格式是 用户名/项目名/主题（三层），SIoT格式是直接主题名（单层）
+  // 解析主题：Mixly格式是 用户名/项目名/主题（三层），巴法云格式是 私钥/主题（两层），SIoT格式是直接主题名（单层）
   const parts = topic.split('/')
   const isMixlyFormat = parts.length >= 3
-  if (isMixlyFormat) {
+  const isBafayunFormat = parts.length === 2
+  if (isMixlyFormat || isBafayunFormat) {
     userTopic = parts[parts.length - 1]
   }
   
   // 根据主题模式过滤消息
   // mode 可以是 'siot', 'bafayun', 'mixly'
-  const mode = topicModes.value[userTopic] || 'siot'
+  // 查找时优先用完整主题名，其次用提取的用户主题名
+  const mode = topicModes.value[topic] || topicModes.value[userTopic] || 'siot'
   if (isMixlyFormat && mode !== 'mixly' && mode !== 'bafayun') return
-  if (!isMixlyFormat && mode !== 'siot') return
+  if (isBafayunFormat && mode !== 'bafayun') return
+  if (!isMixlyFormat && !isBafayunFormat && mode !== 'siot') return
   
   // 只要有组件就处理消息，不依赖 currentProject
   const widgets = currentProject.value?.widgets || []
@@ -583,25 +672,54 @@ const processMessage = (topic: string, message: string) => {
         wd[userTopic] = data
       }
     }
+
+    if (widget.type === 'radio') {
+      const config = widget.config as { topic?: string }
+      if (config.topic === userTopic) {
+        const data = [...(wd[userTopic] || [])]
+        data.push({ timestamp: Date.now(), value: 0, themeId: userTopic } as unknown as DataPoint)
+        ;(data[data.length - 1] as any).value = message
+        if (data.length > MAX_DATA_BUFFER) data.shift()
+        wd[userTopic] = data
+      }
+    }
+
+    if (widget.type === 'light') {
+      const config = widget.config as { topic?: string }
+      if (config.topic === userTopic) {
+        const data = [...(wd[userTopic] || [])]
+        data.push({ timestamp: Date.now(), value: 0, themeId: userTopic } as unknown as DataPoint)
+        ;(data[data.length - 1] as any).value = message
+        if (data.length > MAX_DATA_BUFFER) data.shift()
+        wd[userTopic] = data
+      }
+    }
   })
 }
 
 const handleSendMessage = (topic: string, message: string) => {
-  // 走 HTTP API，让服务端根据主题模式同时发送 SIoT 和 Mixly 格式
-  fetch(`http://localhost:8080/api/topics/${encodeURIComponent(topic)}/publish`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ payload: message })
-  }).then(() => {
+  if (!isConnected.value) return
+  // 内网模式：走 HTTP API，让服务端根据主题模式同时发送 SIoT 和 Mixly 格式
+  if (isInternalMode.value) {
+    fetch(`http://localhost:8080/api/topics/${encodeURIComponent(topic)}/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payload: message })
+    }).then(() => {
+      console.log(`消息已发送到主题 ${topic}: ${message}`)
+    }).catch((e) => {
+      console.warn('发送消息失败:', e)
+      // 降级：直接通过 MQTT 发送
+      if (mqttClient.isConnected()) {
+        mqttClient.publish(topic, message)
+        console.log(`通过 MQTT 发送到主题 ${topic}: ${message}`)
+      }
+    })
+  } else {
+    // 外部平台：直接 MQTT 发送
+    mqttClient.publish(topic, message)
     console.log(`消息已发送到主题 ${topic}: ${message}`)
-  }).catch((e) => {
-    console.warn('发送消息失败:', e)
-    // 降级：直接通过 MQTT 发送
-    if (mqttClient.isConnected()) {
-      mqttClient.publish(topic, message)
-      console.log(`通过 MQTT 发送到主题 ${topic}: ${message}`)
-    }
-  })
+  }
 }
 
 const disconnectFromPlatform = () => {
@@ -613,6 +731,7 @@ const disconnectFromPlatform = () => {
   isConnected.value = false
   isConnecting.value = false
   stopHealthCheck()
+  lastTopics = ''
 }
 
 const startHealthCheck = () => {
@@ -656,6 +775,11 @@ const handleAddWidget = async (type: string, x: number, y: number) => {
     config.y = y - config.height / 2
   }
   
+  // 确保组件不超出画板边界（3000x3000）
+  const cfg = widget.config as { x: number; y: number; width: number; height: number }
+  cfg.x = Math.max(0, Math.min(cfg.x, 3000 - (cfg.width || 200)))
+  cfg.y = Math.max(0, Math.min(cfg.y, 3000 - (cfg.height || 150)))
+  
   await addWidget(currentProjectId.value, widget)
   widgetData[widget.id] = {}
 }
@@ -683,7 +807,7 @@ const handleSidebarUpdate = (updates: Record<string, unknown>) => {
 }
 
 const handleClearWidgetData = (widgetId: string) => {
-  delete widgetData[widgetId]
+  widgetData[widgetId] = {}
   // 滑动条清空数据：通过配置传递归中信号
   const widget = currentProject.value?.widgets.find((w: Widget) => w.id === widgetId)
   if (widget?.type === 'slider') {
@@ -714,14 +838,42 @@ const handleCreateProject = (name: string) => {
 
 /** 滚动到画布正中心 */
 const showCenterFlare = ref(false)
-const handleScrollToCenter = () => {
+const handleScrollToCenter = async () => {
   const wrap = scrollWrapperRef.value
   if (!wrap) return
+
+  cancelMinimapOnEntry()
+  isScrollingToCenter.value = true
+  updateMinimap()
+  if (showEditor.value) updateEditorMinimap()
+  await nextTick()
+
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null
+  const onScroll = () => {
+    updateMinimap()
+    if (showEditor.value) updateEditorMinimap()
+    if (debounceTimer) clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(() => {
+      isScrollingToCenter.value = false
+      wrap.removeEventListener('scroll', onScroll)
+    }, 200)
+  }
+  wrap.addEventListener('scroll', onScroll, { passive: true })
+
   wrap.scrollTo({
     left: Math.max(0, (wrap.scrollWidth - wrap.clientWidth) / 2),
     top: Math.max(0, (wrap.scrollHeight - wrap.clientHeight) / 2),
     behavior: 'smooth'
   })
+
+  // 安全兜底：3秒后强制隐藏小地图
+  setTimeout(() => {
+    if (isScrollingToCenter.value) {
+      isScrollingToCenter.value = false
+      wrap.removeEventListener('scroll', onScroll)
+    }
+  }, 3000)
+
   // 触发十字架闪烁动画
   showCenterFlare.value = true
   setTimeout(() => { showCenterFlare.value = false }, 3500)
@@ -805,6 +957,12 @@ const handleOpenProjectManager = () => {
     showTopBar.value = false
   }
   showProjectManager.value = true
+
+  // 回到项目管理时，取消正在进行的连接请求（不中断已建立的连接）
+  if (isConnecting.value) {
+    mqttClient.abortConnect()
+    isConnecting.value = false
+  }
 }
 
 const handleCreateProjectClick = () => {
@@ -903,11 +1061,37 @@ const handleMouseLeave = () => {
 
 // 画布拖拽平移（编辑/查看模式）
 const isPanning = ref(false)
+const isScrollingToCenter = ref(false)
+const isWheelScrolling = ref(false)
+const justEndedPanning = ref(false)
+const showMinimapOnEntry = ref(false)
+let minimapEntryTimer: ReturnType<typeof setTimeout> | null = null
+const suppressMinimapCancel = ref(false)
+
+/** 触发入口小地图，2s 后自动隐藏，可被用户交互打断 */
+const triggerMinimapOnEntry = () => {
+  if (minimapEntryTimer) clearTimeout(minimapEntryTimer)
+  showMinimapOnEntry.value = true
+  minimapEntryTimer = setTimeout(() => {
+    showMinimapOnEntry.value = false
+    minimapEntryTimer = null
+  }, 2000)
+}
+
+/** 打断入口小地图（用户开始拖拽/滚动时调用） */
+const cancelMinimapOnEntry = () => {
+  if (minimapEntryTimer) {
+    clearTimeout(minimapEntryTimer)
+    minimapEntryTimer = null
+  }
+  showMinimapOnEntry.value = false
+}
+
 const panStart = ref({ mouseX: 0, mouseY: 0, scrollLeft: 0, scrollTop: 0 })
 
 const handleCanvasPanStart = (e: MouseEvent) => {
   if (e.button !== 0) return
-  // 左键按下画布背景开始平移
+  cancelMinimapOnEntry()
   isPanning.value = true
   const wrap = scrollWrapperRef.value
   if (wrap) {
@@ -919,6 +1103,8 @@ const handleCanvasPanStart = (e: MouseEvent) => {
     }
     wrap.style.cursor = 'grabbing'
   }
+  updateMinimap()
+  if (showEditor.value) updateEditorMinimap()
 }
 
 const handleCanvasPanMove = (e: MouseEvent) => {
@@ -929,17 +1115,111 @@ const handleCanvasPanMove = (e: MouseEvent) => {
   const dy = e.clientY - panStart.value.mouseY
   wrap.scrollLeft = panStart.value.scrollLeft - dx
   wrap.scrollTop = panStart.value.scrollTop - dy
+  updateMinimap()
+  if (showEditor.value) updateEditorMinimap()
 }
 
 const handleCanvasPanEnd = () => {
   if (isPanning.value) {
     isPanning.value = false
+    justEndedPanning.value = true
+    setTimeout(() => { justEndedPanning.value = false }, 150)
     const wrap = scrollWrapperRef.value
     if (wrap) {
       wrap.style.cursor = ''
     }
   }
 }
+
+// 滚轮/触控板滚动时触发小地图
+let wheelDebounceTimer: ReturnType<typeof setTimeout> | null = null
+const handleWheelScroll = () => {
+  if (isPanning.value || justEndedPanning.value) return
+  if (!suppressMinimapCancel.value) cancelMinimapOnEntry()
+  isWheelScrolling.value = true
+  updateMinimap()
+  if (showEditor.value) updateEditorMinimap()
+  if (wheelDebounceTimer) clearTimeout(wheelDebounceTimer)
+  wheelDebounceTimer = setTimeout(() => {
+    isWheelScrolling.value = false
+    wheelDebounceTimer = null
+  }, 200)
+}
+
+const MINIMAP_SIZE = 180
+const CANVAS_SIZE = 3000
+const MINIMAP_SCALE = MINIMAP_SIZE / CANVAS_SIZE
+
+const minimapViewportStyle = ref<Record<string, string>>({})
+
+const updateMinimap = () => {
+  const wrap = scrollWrapperRef.value
+  if (!wrap) return
+  const vpLeft = wrap.scrollLeft * MINIMAP_SCALE
+  const vpTop = wrap.scrollTop * MINIMAP_SCALE
+  const vpWidth = Math.min(wrap.clientWidth * MINIMAP_SCALE, MINIMAP_SIZE)
+  const vpHeight = Math.min(wrap.clientHeight * MINIMAP_SCALE, MINIMAP_SIZE)
+  minimapViewportStyle.value = {
+    left: `${vpLeft}px`,
+    top: `${vpTop}px`,
+    width: `${vpWidth}px`,
+    height: `${vpHeight}px`
+  }
+}
+
+const minimapWidgetDots = computed(() => {
+  const widgets = currentProject.value?.widgets || []
+  return widgets.map(w => {
+    const cfg = w.config as Record<string, unknown>
+    const x = (cfg.x as number) || 0
+    const y = (cfg.y as number) || 0
+    const ww = (cfg.width as number) || 100
+    const wh = (cfg.height as number) || 80
+    return {
+      id: w.id,
+      type: w.type,
+      left: `${x * MINIMAP_SCALE}px`,
+      top: `${y * MINIMAP_SCALE}px`,
+      width: `${Math.max(ww * MINIMAP_SCALE, 3)}px`,
+      height: `${Math.max(wh * MINIMAP_SCALE, 3)}px`
+    }
+  })
+})
+
+const EDITOR_MINIMAP_SIZE = 140
+const EDITOR_MINIMAP_SCALE = EDITOR_MINIMAP_SIZE / CANVAS_SIZE
+
+const editorMinimapViewport = ref({ left: 0, top: 0, width: 0, height: 0 })
+
+const updateEditorMinimap = () => {
+  const wrap = scrollWrapperRef.value
+  if (!wrap) return
+  editorMinimapViewport.value = {
+    left: wrap.scrollLeft * EDITOR_MINIMAP_SCALE,
+    top: wrap.scrollTop * EDITOR_MINIMAP_SCALE,
+    width: Math.min(wrap.clientWidth * EDITOR_MINIMAP_SCALE, EDITOR_MINIMAP_SIZE),
+    height: Math.min(wrap.clientHeight * EDITOR_MINIMAP_SCALE, EDITOR_MINIMAP_SIZE)
+  }
+}
+
+const editorMinimapWidgetDots = computed(() => {
+  const widgets = currentProject.value?.widgets || []
+  return widgets.map(w => {
+    const cfg = w.config as Record<string, unknown>
+    const x = (cfg.x as number) || 0
+    const y = (cfg.y as number) || 0
+    const ww = (cfg.width as number) || 100
+    const wh = (cfg.height as number) || 80
+    return {
+      id: w.id,
+      type: w.type,
+      left: `${x * EDITOR_MINIMAP_SCALE}px`,
+      top: `${y * EDITOR_MINIMAP_SCALE}px`,
+      width: `${Math.max(ww * EDITOR_MINIMAP_SCALE, 2)}px`,
+      height: `${Math.max(wh * EDITOR_MINIMAP_SCALE, 2)}px`
+    }
+  })
+})
 
 const handlePlatformConfigConfirm = async (config: PlatformConfig) => {
   if (!currentProject.value) {
@@ -982,12 +1262,19 @@ watch(() => currentProjectId.value, async (newId, oldId) => {
     requestAnimationFrame(() => {
       const w = scrollWrapperRef.value
       if (!w) return
+      suppressMinimapCancel.value = true
       if (saved) {
         w.scrollTo({ left: saved.left, top: saved.top, behavior: 'smooth' })
       } else {
         w.scrollTo({ left: Math.max(0, (w.scrollWidth - w.clientWidth) / 2), top: Math.max(0, (w.scrollHeight - w.clientHeight) / 2), behavior: 'smooth' })
       }
+      setTimeout(() => { suppressMinimapCancel.value = false }, 2500)
     })
+    
+    // 切换项目时显示小地图 2s
+    if (showEditor.value) updateEditorMinimap()
+    else updateMinimap()
+    triggerMinimapOnEntry()
   }
 
   if (newId && newId !== oldId) {
@@ -1001,6 +1288,9 @@ watch(() => currentProjectId.value, async (newId, oldId) => {
     // 统一断开当前连接
     disconnectFromPlatform()
 
+    // 项目管理界面打开时（含首次启动）不自动连接，等用户手动选择项目
+    if (showProjectManager.value) return
+
     const project = projects.value.find((p: Project) => p.id === newId)
     if (project?.platformConfig) {
       connectToPlatform(project.platformConfig, true)
@@ -1010,8 +1300,14 @@ watch(() => currentProjectId.value, async (newId, oldId) => {
   }
 })
 
-watch(() => currentProject.value?.widgets?.length, () => {
-  updateSubscriptions()
+let updateSubscriptionsDebounce: ReturnType<typeof setTimeout> | null = null
+
+watch(() => {
+  if (!currentProject.value) return ''
+  return getAllTopics().sort().join(',')
+}, () => {
+  if (updateSubscriptionsDebounce) clearTimeout(updateSubscriptionsDebounce)
+  updateSubscriptionsDebounce = setTimeout(updateSubscriptions, 300)
 })
 
 provide('mqttClient', mqttClient)
@@ -1023,6 +1319,42 @@ onMounted(() => {
   loadProjects()
   document.addEventListener('mousemove', handleCanvasPanMove)
   document.addEventListener('mouseup', handleCanvasPanEnd)
+  // 监视画布容器尺寸变化，自动更新小地图绿框
+  const wrap = scrollWrapperRef.value
+  if (wrap) {
+    const ro = new ResizeObserver(() => {
+      if (isFullscreen.value) updateMinimap()
+      if (showEditor.value) updateEditorMinimap()
+    })
+    ro.observe(wrap)
+    ;(window as any).__minimapResizeObserver = ro
+  }
+})
+
+// 启动时后台检查更新，CMD警告关闭后显示右下角提示
+let startupUpdateChecked = false
+let startupUpdatePromise: Promise<Awaited<ReturnType<typeof checkForUpdates>>> | null = null
+
+startupUpdatePromise = checkForUpdates()
+
+watch(showCmdWarning, async (val) => {
+  if (!val && !startupUpdateChecked) {
+    startupUpdateChecked = true
+    const result = await startupUpdatePromise
+    if (!result) return
+    if (result.hasUpdate && result.latestRelease) {
+      updateToastType.value = 'update'
+      toastData.value = {
+        versionType: getVersionTypeLabel(result.versionType),
+        newVersion: result.latestRelease.version,
+        currentVersion: result.currentVersion
+      }
+      showUpdateToast.value = true
+    } else if (result.error) {
+      updateToastType.value = 'error'
+      showUpdateToast.value = true
+    }
+  }
 })
 
 onUnmounted(() => {
@@ -1035,13 +1367,15 @@ onUnmounted(() => {
   }
   document.removeEventListener('mousemove', handleCanvasPanMove)
   document.removeEventListener('mouseup', handleCanvasPanEnd)
+  const ro = (window as any).__minimapResizeObserver
+  if (ro) { ro.disconnect(); delete (window as any).__minimapResizeObserver }
 })
 </script>
 
 <template>
   <div 
     class="app-container" 
-    :class="{ 'fullscreen-mode': isFullscreen }"
+    :class="{ 'fullscreen-mode': isFullscreen, 'editor-mode': showEditor }"
     @mousemove="handleMouseMove"
     @mouseleave="handleMouseLeave"
   >
@@ -1082,6 +1416,7 @@ onUnmounted(() => {
       @openIoTService="handleOpenIoTService"
       @export-projects="handleExportProjects"
       @import-projects="handleImportProjects"
+      @check-update="showCheckUpdate = true"
     />
     
     <PlatformConfigModal
@@ -1114,12 +1449,14 @@ onUnmounted(() => {
     />
 
     <div v-else class="panel-container">
-      <SidebarLeft 
-        v-if="showEditor" 
-        @add-widget="handleAddWidget" 
-      />
+      <Transition name="slide-left" appear>
+        <SidebarLeft 
+          v-if="showEditor" 
+          @add-widget="handleAddWidget" 
+        />
+      </Transition>
       
-      <div ref="scrollWrapperRef" class="canvas-scroll-wrapper" :class="{ 'editor-mode': showEditor }" @mousedown="handleCanvasPanStart">
+      <div ref="scrollWrapperRef" class="canvas-scroll-wrapper" :class="{ 'editor-mode': showEditor }" @mousedown="handleCanvasPanStart" @scroll.passive="handleWheelScroll">
         <MainCanvas
           :widgets="currentProject?.widgets || []"
           :selected-widget-id="selectedWidgetId"
@@ -1133,20 +1470,71 @@ onUnmounted(() => {
           @update-widget-size="handleUpdateWidgetSize"
         />
       </div>
+
+      <Transition name="minimap-fade">
+        <div v-if="(isPanning || isScrollingToCenter || isWheelScrolling || showMinimapOnEntry) && isFullscreen" class="canvas-minimap">
+          <div class="minimap-grid">
+            <div
+              v-for="dot in minimapWidgetDots"
+              :key="dot.id"
+              class="minimap-dot"
+              :class="'dot-' + dot.type"
+              :style="{
+                left: dot.left,
+                top: dot.top,
+                width: dot.width,
+                height: dot.height
+              }"
+            ></div>
+            <div class="minimap-viewport" :style="minimapViewportStyle"></div>
+          </div>
+        </div>
+      </Transition>
+
+      <Transition name="editor-minimap-fade">
+        <div v-if="(isPanning || isScrollingToCenter || isWheelScrolling || showMinimapOnEntry) && showEditor" class="editor-minimap">
+          <div class="editor-minimap-grid">
+            <div
+              v-for="dot in editorMinimapWidgetDots"
+              :key="dot.id"
+              class="editor-minimap-dot"
+              :class="'dot-' + dot.type"
+              :style="{
+                left: dot.left,
+                top: dot.top,
+                width: dot.width,
+                height: dot.height
+              }"
+            ></div>
+            <div
+              class="editor-minimap-viewport"
+              :style="{
+                left: editorMinimapViewport.left + 'px',
+                top: editorMinimapViewport.top + 'px',
+                width: editorMinimapViewport.width + 'px',
+                height: editorMinimapViewport.height + 'px'
+              }"
+            ></div>
+          </div>
+        </div>
+      </Transition>
       
-      <SidebarRight
-        v-if="showEditor"
-        :widget="selectedWidget"
-        :widget-data="widgetData[selectedWidgetId || '']"
-        @update="handleSidebarUpdate"
-        @remove="selectedWidgetId && handleRemoveWidget(selectedWidgetId)"
-        @clear-data="selectedWidgetId && handleClearWidgetData(selectedWidgetId)"
-      />
+      <Transition name="slide-right" appear>
+        <SidebarRight
+          v-if="showEditor"
+          :widget="selectedWidget"
+          :widget-data="widgetData[selectedWidgetId || '']"
+          @update="handleSidebarUpdate"
+          @remove="selectedWidgetId && handleRemoveWidget(selectedWidgetId)"
+          @clear-data="selectedWidgetId && handleClearWidgetData(selectedWidgetId)"
+          @send-message="(topic: string, message: string) => handleSendMessage(topic, message)"
+        />
+      </Transition>
     </div>
     
     <!-- 连接光效 -->
     <RippleEffect :ripples="ripples" />
-    
+
     <!-- 页面水印 -->
     <div class="watermark">
       <div class="watermark-left">ZzIOT-可视化面板 | {{ APP_VERSION }}</div>
@@ -1160,11 +1548,25 @@ onUnmounted(() => {
       @close="showExportModal = false"
     />
 
+    <CheckUpdateModal
+      v-if="showCheckUpdate"
+      @close="showCheckUpdate = false"
+    />
+
+    <UpdateToast
+      v-if="showUpdateToast"
+      :type="updateToastType"
+      :version-type="toastData.versionType"
+      :new-version="toastData.newVersion"
+      :current-version="toastData.currentVersion"
+      @click="showUpdateToast = false; showCheckUpdate = true"
+      @close="showUpdateToast = false"
+    />
+
     <div v-if="noProjectAlert" class="modal-overlay" @click.self="noProjectAlert = false">
       <div class="modal-content">
         <div class="modal-header">
           <h2>提示</h2>
-          <button class="close-btn" @click="noProjectAlert = false">×</button>
         </div>
         <div class="modal-body">
           <p style="text-align: center; font-size: 15px; color: #666;">当前没有任何项目，请先创建一个项目后再导出。</p>
@@ -1179,7 +1581,6 @@ onUnmounted(() => {
       <div class="modal-content">
         <div class="modal-header">
           <h2>{{ importDialog.message }}</h2>
-          <button class="close-btn" @click="importDialog.resolve?.(false)">×</button>
         </div>
         <div class="modal-body">
           <p style="text-align: center; font-size: 16px; color: #333; white-space: pre-line; line-height: 1.6;">{{ importDialog.detail }}</p>
@@ -1241,6 +1642,24 @@ onUnmounted(() => {
   min-height: 3000px;
 }
 
+/* 编辑模式：顶栏悬浮覆盖，面板撑满全高 */
+.app-container.editor-mode .panel-container {
+  height: 100%;
+}
+
+.app-container.editor-mode :deep(.blue-header) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+.app-container.editor-mode :deep(.sidebar-left),
+.app-container.editor-mode :deep(.sidebar-right) {
+  padding-top: 48px;
+}
+
 /* 编辑模式：画布滚动容器 */
 .canvas-scroll-wrapper {
   flex: 1;
@@ -1274,7 +1693,7 @@ onUnmounted(() => {
   pointer-events: none;
   user-select: none;
   z-index: 10000;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'HarmonyOS Sans SC', 'HarmonyOS Sans', sans-serif;
   letter-spacing: 0.3px;
   display: flex;
   justify-content: space-between;
@@ -1368,11 +1787,15 @@ onUnmounted(() => {
 }
 
 .btn {
-  padding: 8px 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 18px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
+  line-height: 1.2;
   font-weight: 500;
   transition: all 0.2s;
 }
@@ -1384,5 +1807,260 @@ onUnmounted(() => {
 
 .btn-secondary:hover {
   background: #e0e0e0;
+}
+
+/* 侧边栏进入动画 */
+.slide-left-enter-active {
+  transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.slide-left-enter-from {
+  transform: translateX(-100%);
+}
+
+.slide-right-enter-active {
+  transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.slide-right-enter-from {
+  transform: translateX(100%);
+}
+
+/* 画布小地图（全屏拖拽时显示） */
+.canvas-minimap {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 99999;
+  background: rgba(30, 30, 30, 0.85);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(168, 230, 168, 0.4);
+  backdrop-filter: blur(6px);
+}
+
+.minimap-grid {
+  width: 180px;
+  height: 180px;
+  background-color: #2a2a2a;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: calc(180px / 15) calc(180px / 15);
+  background-repeat: repeat;
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+}
+
+.minimap-viewport {
+  position: absolute;
+  background: rgba(168, 230, 168, 0.25);
+  border: 2px solid #a8e6a8;
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(168, 230, 168, 0.5), inset 0 0 4px rgba(168, 230, 168, 0.2);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.minimap-dot {
+  position: absolute;
+  border-radius: 2px;
+  background: rgba(200, 200, 200, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.minimap-dot.dot-lineChart,
+.minimap-dot.dot-barChart,
+.minimap-dot.dot-miniArea {
+  background: rgba(100, 180, 255, 0.55);
+  border-color: rgba(100, 180, 255, 0.7);
+}
+
+.minimap-dot.dot-image {
+  background: rgba(210, 180, 140, 0.55);
+  border-color: rgba(210, 180, 140, 0.7);
+}
+
+.minimap-dot.dot-light {
+  background: rgba(255, 180, 100, 0.55);
+  border-color: rgba(255, 180, 100, 0.7);
+}
+
+.minimap-dot.dot-button {
+  background: rgba(100, 220, 150, 0.55);
+  border-color: rgba(100, 220, 150, 0.7);
+}
+
+.minimap-dot.dot-switch {
+  background: rgba(100, 220, 150, 0.55);
+  border-color: rgba(100, 220, 150, 0.7);
+}
+
+.minimap-dot.dot-slider {
+  background: rgba(220, 180, 100, 0.55);
+  border-color: rgba(220, 180, 100, 0.7);
+}
+
+.minimap-dot.dot-text,
+.minimap-dot.dot-textarea {
+  background: rgba(200, 200, 200, 0.55);
+  border-color: rgba(200, 200, 200, 0.7);
+}
+
+.minimap-dot.dot-decorativeText {
+  background: rgba(200, 140, 220, 0.55);
+  border-color: rgba(200, 140, 220, 0.7);
+}
+
+.minimap-dot.dot-radio {
+  background: rgba(100, 220, 150, 0.55);
+  border-color: rgba(100, 220, 150, 0.7);
+}
+
+.minimap-dot.dot-input {
+  background: rgba(255, 220, 100, 0.55);
+  border-color: rgba(255, 220, 100, 0.7);
+}
+
+/* 小地图淡入淡出动画 */
+.minimap-fade-enter-active {
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.minimap-fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.minimap-fade-enter-from {
+  opacity: 0;
+  transform: translateX(-50%) translateY(12px) scale(0.9);
+}
+
+.minimap-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(12px) scale(0.9);
+}
+
+/* 编辑模式画布右下角小地图（靠组件属性面板左侧） */
+.editor-minimap {
+  position: absolute;
+  bottom: 12px;
+  right: 272px;
+  z-index: 100;
+  background: rgba(30, 30, 30, 0.78);
+  border-radius: 8px;
+  padding: 5px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 0 1.5px rgba(168, 230, 168, 0.35);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+
+.editor-minimap-grid {
+  width: 140px;
+  height: 140px;
+  background-color: #2a2a2a;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: calc(100px / 10) calc(100px / 10);
+  background-repeat: repeat;
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.editor-minimap-dot {
+  position: absolute;
+  border-radius: 1px;
+  background: rgba(200, 200, 200, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.editor-minimap-dot.dot-lineChart,
+.editor-minimap-dot.dot-barChart,
+.editor-minimap-dot.dot-miniArea {
+  background: rgba(100, 180, 255, 0.5);
+  border-color: rgba(100, 180, 255, 0.6);
+}
+
+.editor-minimap-dot.dot-image {
+  background: rgba(210, 180, 140, 0.5);
+  border-color: rgba(210, 180, 140, 0.6);
+}
+
+.editor-minimap-dot.dot-light {
+  background: rgba(255, 180, 100, 0.5);
+  border-color: rgba(255, 180, 100, 0.6);
+}
+
+.editor-minimap-dot.dot-button {
+  background: rgba(100, 220, 150, 0.5);
+  border-color: rgba(100, 220, 150, 0.6);
+}
+
+.editor-minimap-dot.dot-switch {
+  background: rgba(100, 220, 150, 0.5);
+  border-color: rgba(100, 220, 150, 0.6);
+}
+
+.editor-minimap-dot.dot-slider {
+  background: rgba(220, 180, 100, 0.5);
+  border-color: rgba(220, 180, 100, 0.6);
+}
+
+.editor-minimap-dot.dot-text,
+.editor-minimap-dot.dot-textarea {
+  background: rgba(200, 200, 200, 0.5);
+  border-color: rgba(200, 200, 200, 0.6);
+}
+
+.editor-minimap-dot.dot-decorativeText {
+  background: rgba(200, 140, 220, 0.5);
+  border-color: rgba(200, 140, 220, 0.6);
+}
+
+.editor-minimap-dot.dot-radio {
+  background: rgba(100, 220, 150, 0.5);
+  border-color: rgba(100, 220, 150, 0.6);
+}
+
+.editor-minimap-dot.dot-input {
+  background: rgba(255, 220, 100, 0.5);
+  border-color: rgba(255, 220, 100, 0.6);
+}
+
+.editor-minimap-viewport {
+  position: absolute;
+  background: rgba(168, 230, 168, 0.2);
+  border: 1.5px solid #a8e6a8;
+  border-radius: 2px;
+  box-shadow: 0 0 6px rgba(168, 230, 168, 0.4);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* 编辑模式小地图淡入淡出 */
+.editor-minimap-fade-enter-active {
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.editor-minimap-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.editor-minimap-fade-enter-from {
+  opacity: 0;
+  transform: scale(0.85);
+}
+
+.editor-minimap-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.85);
 }
 </style>

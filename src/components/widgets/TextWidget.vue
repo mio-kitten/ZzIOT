@@ -3,7 +3,7 @@
  * 显示单个 MQTT 主题接收到的消息，支持多主题/单主题显示模式
  */
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import type { DataPoint, ThemeConfig } from '@/types'
 
 const props = defineProps<{
@@ -17,20 +17,11 @@ const props = defineProps<{
     themes?: ThemeConfig[]
   }
   data: Record<string, DataPoint[]>
+  widgetType?: string
 }>()
 
 const containerRef = ref<HTMLElement | null>(null)
 const containerSize = ref({ width: 280, height: 80 })
-const hasEverReceivedData = ref(false)
-
-watch(() => props.data, (newData) => {
-  if (hasEverReceivedData.value) return
-
-  const hasData = Object.values(newData).some(arr => arr && arr.length > 0)
-  if (hasData) {
-    hasEverReceivedData.value = true
-  }
-}, { deep: true, immediate: true })
 
 const updateSize = () => {
   if (containerRef.value) {
@@ -66,10 +57,6 @@ const lines = computed(() => {
   const result: { text: string; color?: string }[] = []
   
   if (props.config.displayMode === 'singleTopic' && props.config.themes) {
-    // 单主题多数据模式
-    if (!hasEverReceivedData.value) {
-      return [{ text: '等待数据...' }]
-    }
     props.config.themes.forEach((theme, index) => {
       const lineId = `line-${index + 1}`
       const points = props.data[lineId]
@@ -81,31 +68,25 @@ const lines = computed(() => {
         })
       } else {
         result.push({
-          text: `${theme.name}: --`,
+          text: `${theme.name}: 等待数据`,
           color: theme.color
         })
       }
     })
   } else if (props.config.themes) {
-    // 多主题模式
-    if (!hasEverReceivedData.value) {
-      return [{ text: '等待数据...' }]
-    }
     props.config.themes.forEach((theme) => {
-      if (theme.topic) {
-        const points = props.data[theme.topic]
-        if (points && points.length > 0) {
-          const latest = points[points.length - 1]
-          result.push({
-            text: `${theme.name}: ${String(latest.value)}`,
-            color: theme.color
-          })
-        } else {
-          result.push({
-            text: `${theme.name}: --`,
-            color: theme.color
-          })
-        }
+      const points = theme.topic ? props.data[theme.topic] : undefined
+      if (points && points.length > 0) {
+        const latest = points[points.length - 1]
+        result.push({
+          text: `${theme.name}: ${String(latest.value)}`,
+          color: theme.color
+        })
+      } else {
+        result.push({
+          text: `${theme.name}: 等待数据`,
+          color: theme.color
+        })
       }
     })
   } else if (props.config.topic) {
@@ -116,8 +97,6 @@ const lines = computed(() => {
     } else {
       result.push({ text: '等待数据...' })
     }
-  } else {
-    result.push({ text: '等待数据...' })
   }
   
   return result
@@ -134,29 +113,43 @@ const layout = computed(() => {
 const fontSizePx = computed(() => {
   const { width, height } = containerSize.value
   const lineCount = lines.value.length
-  // 最小字号随组件尺寸等比缩小，取两轴较小值的比例
+  const isTextarea = props.widgetType === 'textarea'
   const minSize = Math.min(Math.max(width * 0.06, 10), Math.max(height * 0.12, 10), 18)
   const maxSize = 72
   
   if (layout.value === 'horizontal' && lineCount > 0) {
-    // 横排布局：根据文字长度计算字号，确保完整显示不被截断
+    if (isTextarea) {
+      const sizeBasedOnHeight = height * 0.15
+      const sizeBasedOnWidth = width <= 375 ? width * 0.07 : Infinity
+      const maxByLines = (height - (lineCount - 1) * 8) / (lineCount * 1.4)
+      const minFont = width <= 375 ? 18 : 28
+      return Math.max(minFont, Math.min(Math.min(sizeBasedOnWidth, sizeBasedOnHeight, maxByLines), maxSize))
+    }
+    const maxFontByHeight = height * 0.5
     const perItemWidth = (width - (lineCount - 1) * 8) / lineCount
     const maxTextLength = Math.max(...lines.value.map(l => l.text.length))
-    // 比例字体下每字符约 0.6em 宽，留 10% 边距
     const maxFontByText = maxTextLength > 0 ? perItemWidth * 0.9 / (maxTextLength * 0.6) : perItemWidth
-    const maxFontByHeight = height * 0.5
     return Math.max(minSize, Math.min(Math.min(maxFontByText, maxFontByHeight), maxSize))
   }
   
-  // 竖排布局：确保所有行都能完整显示
-  const sizeBasedOnWidth = width * 0.14
-  const sizeBasedOnHeight = height * 0.38
-  // 按行数限制：每行需要 字号×1.4 行高 + 间隙
+  const sizeBasedOnHeight = height * (isTextarea ? 0.15 : 0.36)
+  const sizeBasedOnWidth = isTextarea ? (width <= 375 ? width * 0.07 : Infinity) : width * 0.16
   const maxByLines = lineCount > 1 ? (height - (lineCount - 1) * 8) / (lineCount * 1.4) : sizeBasedOnHeight
-  return Math.max(minSize, Math.min(Math.min(sizeBasedOnWidth, sizeBasedOnHeight, maxByLines), maxSize))
+  const minFont = isTextarea && width <= 375 ? 18 : 28
+  return Math.max(minFont, Math.min(Math.min(sizeBasedOnWidth, sizeBasedOnHeight, maxByLines), maxSize))
 })
 
 const displayFontSize = computed(() => `${fontSizePx.value}px`)
+
+const gapPx = computed(() => {
+  if (props.widgetType !== 'textarea') return 8
+  const { width, height } = containerSize.value
+  const lineCount = lines.value.length
+  if (lineCount <= 1) return 8
+  const rate = width <= 375 ? 0.012 : 0.06
+  const heightBonus = width <= 375 ? height * 0.08 : 0
+  return Math.max(8, Math.min(width * rate + heightBonus, 40))
+})
 </script>
 
 <template>
@@ -164,6 +157,7 @@ const displayFontSize = computed(() => `${fontSizePx.value}px`)
     <div 
       class="received-lines"
       :class="{ 'layout-horizontal': layout === 'horizontal' }"
+      :style="{ gap: gapPx + 'px' }"
     >
       <div 
         v-for="(line, index) in lines" 

@@ -66,7 +66,6 @@ const handleExport = () => {
     <div class="modal-content">
       <div class="modal-header">
         <h2>导出项目</h2>
-        <button class="close-btn" @click="handleClose">×</button>
       </div>
       <div class="modal-body">
         <p class="modal-desc">请选择要导出的项目（可多选）：</p>
@@ -277,11 +276,15 @@ const handleExport = () => {
 }
 
 .btn {
-  padding: 8px 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 18px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
+  line-height: 1.2;
   font-weight: 500;
   transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }

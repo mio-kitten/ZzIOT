@@ -32,12 +32,12 @@ const currentValues = computed(() => {
     let themeData: DataPoint[] = []
     if (props.config.displayMode === 'singleTopic') {
       const lineId = `line-${index + 1}`
-      themeData = parsedData.value[lineId] || []
+      themeData = (parsedData.value[lineId] || []).filter(d => isValidNumber(d.value))
     } else {
-      themeData = parsedData.value[theme.topic] || parsedData.value[theme.id] || []
+      themeData = (parsedData.value[theme.topic] || parsedData.value[theme.id] || []).filter(d => isValidNumber(d.value))
     }
     const displayData = themeData.slice(-props.config.maxDataPoints)
-    const lastValue = displayData.length > 0 ? displayData[displayData.length - 1].value : '--'
+    const lastValue = displayData.length > 0 ? displayData[displayData.length - 1].value : (hasEverReceivedData.value ? '' : '--')
     return {
       name: theme.name,
       color: theme.color,
@@ -50,6 +50,10 @@ const chartCanvas = ref<HTMLCanvasElement | null>(null)
 let chartInstance: Chart | null = null
 let resizeObserver: ResizeObserver | null = null
 let animTimeout: ReturnType<typeof setTimeout> | null = null
+
+const hasEverReceivedData = ref(false)
+
+const isValidNumber = (v: any): v is number => typeof v === 'number' && !isNaN(v)
 
 const formatTime = (timestamp: number) => {
   const date = new Date(timestamp)
@@ -75,7 +79,7 @@ const createChart = () => {
   if (props.config.displayMode === 'singleTopic') {
     datasets = props.config.themes.map((theme, index) => {
       const lineId = `line-${index + 1}`
-      const lineData = parsedData.value[lineId] || []
+      const lineData = (parsedData.value[lineId] || []).filter(d => isValidNumber(d.value))
       const displayData = lineData.slice(-props.config.maxDataPoints)
       return {
         label: theme.name,
@@ -86,13 +90,12 @@ const createChart = () => {
         pointRadius: 4,
         pointHoverRadius: 6,
         tension: 0.3,
-        fill: false,
-        hidden: lineData.length === 0
+        fill: false
       }
     })
   } else {
     datasets = props.config.themes.map(theme => {
-      const themeData = parsedData.value[theme.topic] || parsedData.value[theme.id] || []
+      const themeData = (parsedData.value[theme.topic] || parsedData.value[theme.id] || []).filter(d => isValidNumber(d.value))
       const displayData = themeData.slice(-props.config.maxDataPoints)
       return {
         label: theme.name,
@@ -195,6 +198,12 @@ const updateChart = () => {
   const displayTimestamps = allTimestamps.slice(-props.config.maxDataPoints)
   const labels = displayTimestamps.map(ts => formatTime(ts))
   
+  // 无新数据时保留历史数据，仅更新颜色
+  if (allData.length === 0) {
+    chartInstance.update('none')
+    return
+  }
+  
   // 更新 labels
   chartInstance.data.labels!.length = 0
   chartInstance.data.labels!.push(...labels)
@@ -208,61 +217,41 @@ const updateChart = () => {
     let themeData: DataPoint[] = []
     if (props.config.displayMode === 'singleTopic') {
       const lineId = `line-${index + 1}`
-      themeData = parsedData.value[lineId] || []
+      themeData = (parsedData.value[lineId] || []).filter(d => isValidNumber(d.value))
     } else {
-      themeData = parsedData.value[theme.topic] || parsedData.value[theme.id] || []
+      themeData = (parsedData.value[theme.topic] || parsedData.value[theme.id] || []).filter(d => isValidNumber(d.value))
     }
     const displayData = themeData.slice(-maxLen)
     const newValues = displayData.map(d => d.value)
     datasetsNewValues.push(newValues)
   })
   
-  // Step 1: 新数据先闪现到最后一列（无动画）
+  // 数据未变化则跳过重绘
+  let hasChanged = false
+  props.config.themes.forEach((_, index) => {
+    const newValues = datasetsNewValues[index]
+    const ds = chartInstance!.data.datasets[index]
+    if (ds) {
+      const curData = ds.data as number[]
+      if (curData.length !== newValues.length || !curData.every((v, i) => v === newValues[i])) {
+        hasChanged = true
+      }
+    }
+  })
+  if (!hasChanged) return
+  
+  // 统一使用简单动画：直接赋值，新元素自然动画进入
   props.config.themes.forEach((_, index) => {
     const newValues = datasetsNewValues[index]
     if (chartInstance!.data.datasets[index]) {
-      chartInstance!.data.datasets[index].data[newValues.length - 1] = newValues[newValues.length - 1]
-      chartInstance!.data.datasets[index].hidden = newValues.length === 0
+      const ds = chartInstance!.data.datasets[index]
+      for (let i = 0; i < newValues.length; i++) {
+        ds.data[i] = newValues[i]
+      }
+      ds.data.length = newValues.length
     }
   })
-  
-  // 判断是否满容量（取所有 dataset 中最长的长度）
-  const maxDataLen = Math.max(...datasetsNewValues.map(v => v.length), 0)
-  const isFull = maxDataLen >= maxLen
-  
-  if (isFull) {
-    // 满容量：两步更新（闪现 + 移位）
-    chartInstance.update('none')
-    
-    // Step 2: 旧数据集体往左移（带动画）
-    animTimeout = setTimeout(() => {
-      if (!chartInstance) return
-      props.config.themes.forEach((_, index) => {
-        const newValues = datasetsNewValues[index]
-        if (chartInstance!.data.datasets[index]) {
-          const ds = chartInstance!.data.datasets[index]
-          for (let i = 0; i < newValues.length - 1; i++) {
-            ds.data[i] = newValues[i]
-          }
-        }
-      })
-      chartInstance.update()
-      animTimeout = null
-    }, 80)
-  } else {
-    // 未满容量：直接延长数组+默认动画，新元素自然动画进入
-    props.config.themes.forEach((_, index) => {
-      const newValues = datasetsNewValues[index]
-      if (chartInstance!.data.datasets[index]) {
-        const ds = chartInstance!.data.datasets[index]
-        for (let i = 0; i < newValues.length; i++) {
-          ds.data[i] = newValues[i]
-        }
-        ds.hidden = newValues.length === 0
-      }
-    })
-    chartInstance.update()
-  }
+  chartInstance.update()
 }
 
 const handleResize = () => {
@@ -272,6 +261,7 @@ const handleResize = () => {
 }
 
 watch(() => props.data, () => {
+  hasEverReceivedData.value = Object.values(props.data).some(arr => arr && arr.length > 0)
   updateChart()
 }, { deep: true, immediate: true })
 
@@ -293,6 +283,12 @@ onMounted(() => {
       resizeObserver = new ResizeObserver(handleResize)
       resizeObserver.observe(chartCanvas.value.parentElement || chartCanvas.value)
     }
+    
+    setTimeout(() => {
+      if (chartInstance) {
+        chartInstance.resize()
+      }
+    }, 100)
   })
 })
 

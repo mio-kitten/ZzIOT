@@ -17,6 +17,8 @@ import MiniAreaWidget from './widgets/MiniAreaWidget.vue'
 import InputWidget from './widgets/InputWidget.vue'
 import RadioWidget from './widgets/RadioWidget.vue'
 import DecorativeTextWidget from './widgets/DecorativeTextWidget.vue'
+import ImageWidget from './widgets/ImageWidget.vue'
+import LightWidget from './widgets/LightWidget.vue'
 
 const props = defineProps<{
   widgets: Widget[]
@@ -34,12 +36,15 @@ const emit = defineEmits<{
   updateWidgetSize: [id: string, width: number, height: number]
 }>()
 
+const CANVAS_SIZE = 3000
+
 const isDragging = ref(false)
 const dragOffset = ref({ x: 0, y: 0 })
 const draggingWidgetId = ref<string | null>(null)
 const canvasRef = ref<HTMLElement | null>(null)
 
 const isNativeDrag = ref(false)
+const dragEnterCounter = ref(0)
 
 const removingWidgetIds = ref<Set<string>>(new Set())
 
@@ -68,7 +73,8 @@ const getWidgetTitle = (widget: Widget) => {
 const isWidgetTransparent = (widget: Widget) => {
   const config = widget.config as { transparent?: boolean; hideMode?: string }
   return config.transparent === true || 
-    (widget.type === 'decorativeText' && (config.hideMode === 'bg' || config.hideMode === 'bgAndTitle'))
+    (widget.type === 'decorativeText' && (config.hideMode === 'bg' || config.hideMode === 'bgAndTitle')) ||
+    widget.type === 'light'
 }
 
 const shouldShowTitle = (widget: Widget) => {
@@ -87,7 +93,7 @@ const shouldShowTitle = (widget: Widget) => {
       }
       return true
     }
-    return !config.transparent || widget.type === 'switch' || widget.type === 'button'
+    return !config.transparent || widget.type === 'switch' || widget.type === 'button' || widget.type === 'image' || widget.type === 'light'
   }
 }
 
@@ -100,29 +106,15 @@ const shouldCenterTitleFullscreen = (widget: Widget) => {
   return isWidgetTransparent(widget) && (widget.type === 'switch' || widget.type === 'button')
 }
 
+const EMPTY_OBJ: Record<string, never> = {}
+const EMPTY_ARR: never[] = []
+
 const getWidgetConfig = (widget: Widget) => {
   return widget.config as { themes: { id: string; name: string; color: string; topic: string }[]; maxDataPoints: number; yAxisUnit: string; displayMode: 'multiTopic' | 'singleTopic' }
 }
 
 const getMiniAreaData = (widgetId: string): DataPoint[] => {
-  const data = props.widgetData[widgetId]?.[widgetId] || []
-  if (data.length === 0) {
-    // 返回模拟数据确保图表能显示
-    const now = Date.now()
-    return [
-      { timestamp: now - 9000, value: 5, themeId: widgetId },
-      { timestamp: now - 8000, value: 8, themeId: widgetId },
-      { timestamp: now - 7000, value: 6, themeId: widgetId },
-      { timestamp: now - 6000, value: 10, themeId: widgetId },
-      { timestamp: now - 5000, value: 7, themeId: widgetId },
-      { timestamp: now - 4000, value: 12, themeId: widgetId },
-      { timestamp: now - 3000, value: 9, themeId: widgetId },
-      { timestamp: now - 2000, value: 14, themeId: widgetId },
-      { timestamp: now - 1000, value: 11, themeId: widgetId },
-      { timestamp: now, value: 15, themeId: widgetId },
-    ]
-  }
-  return data
+   return props.widgetData[widgetId]?.[widgetId] || []
 }
 
 const handleCanvasClick = () => {
@@ -132,20 +124,39 @@ const handleCanvasClick = () => {
 const handleDragOver = (e: DragEvent) => {
   e.preventDefault()
   e.dataTransfer!.dropEffect = 'copy'
+}
+
+const handleDragEnter = (e: DragEvent) => {
+  e.preventDefault()
+  dragEnterCounter.value++
   isNativeDrag.value = true
+}
+
+const handleDragLeave = (_e: DragEvent) => {
+  dragEnterCounter.value--
+  if (dragEnterCounter.value <= 0) {
+    dragEnterCounter.value = 0
+    isNativeDrag.value = false
+  }
+}
+
+const handleDragEndCleanup = () => {
+  isNativeDrag.value = false
+  dragEnterCounter.value = 0
 }
 
 const handleDrop = (e: DragEvent) => {
   e.preventDefault()
   e.stopPropagation()
   isNativeDrag.value = false
+  dragEnterCounter.value = 0
   const widgetType = e.dataTransfer?.getData('widgetType')
   if (!widgetType) return
   
   const canvas = e.currentTarget as HTMLElement
   const rect = canvas.getBoundingClientRect()
-  const x = e.clientX - rect.left
-  const y = e.clientY - rect.top
+  const x = Math.max(0, Math.min(e.clientX - rect.left, CANVAS_SIZE - 200))
+  const y = Math.max(0, Math.min(e.clientY - rect.top, CANVAS_SIZE - 150))
   
   emit('addWidget', widgetType, x, y)
 }
@@ -217,21 +228,41 @@ const handleMouseMove = (e: MouseEvent) => {
     const x = e.clientX - canvasRect.left - dragOffset.value.x
     const y = e.clientY - canvasRect.top - dragOffset.value.y
     
+    const widget = props.widgets.find(w => w.id === draggingWidgetId.value)
+    const cfg = widget?.config as { width: number; height: number } | undefined
+    const w = cfg?.width ?? 200
+    const h = cfg?.height ?? 150
+    const cx = Math.max(0, Math.min(Math.round(x), CANVAS_SIZE - w))
+    const cy = Math.max(0, Math.min(Math.round(y), CANVAS_SIZE - h))
+    
     emit('updateWidget', draggingWidgetId.value, {
-      x: Math.round(x),
-      y: Math.round(y)
+      x: cx,
+      y: cy
     })
   }
   
   if (isResizing.value && resizingWidgetId.value) {
-    const canvasRect = canvasRef.value.getBoundingClientRect()
     const deltaX = e.clientX - resizeStartPos.value.x
     const deltaY = e.clientY - resizeStartPos.value.y
     
     const widget = props.widgets.find(w => w.id === resizingWidgetId.value)
     const { width: minW, height: minH } = widget ? getWidgetMinSize(widget.type) : { width: 120, height: 80 }
-    const newWidth = Math.max(minW, Math.min(resizeStartSize.value.width + deltaX, canvasRect.width - 50))
-    const newHeight = Math.max(minH, Math.min(resizeStartSize.value.height + deltaY, canvasRect.height - 50))
+    const cfg = widget?.config as { x: number; y: number } | undefined
+    const widgetX = cfg?.x ?? 0
+    const widgetY = cfg?.y ?? 0
+    
+    let newWidth: number
+    let newHeight: number
+    
+    if (widget?.type === 'light') {
+      const delta = Math.round((deltaX + deltaY) / 2)
+      const newSize = Math.max(minW, Math.min(resizeStartSize.value.width + delta, CANVAS_SIZE - widgetX, CANVAS_SIZE - widgetY))
+      newWidth = newSize
+      newHeight = newSize
+    } else {
+      newWidth = Math.max(minW, Math.min(resizeStartSize.value.width + deltaX, CANVAS_SIZE - widgetX))
+      newHeight = Math.max(minH, Math.min(resizeStartSize.value.height + deltaY, CANVAS_SIZE - widgetY))
+    }
     
     emit('updateWidget', resizingWidgetId.value, {
       width: newWidth,
@@ -251,21 +282,25 @@ const handleMouseUp = () => {
 const handleMoveBy = (widgetId: string, dx: number, dy: number) => {
   const widget = props.widgets.find(w => w.id === widgetId)
   if (!widget) return
-  const config = widget.config as { x: number; y: number }
+  const config = widget.config as { x: number; y: number; width: number; height: number }
+  const cx = Math.max(0, Math.min(config.x + dx, CANVAS_SIZE - (config.width || 200)))
+  const cy = Math.max(0, Math.min(config.y + dy, CANVAS_SIZE - (config.height || 150)))
   emit('updateWidget', widgetId, {
-    x: config.x + dx,
-    y: config.y + dy
+    x: cx,
+    y: cy
   })
 }
 
 onMounted(() => {
   document.addEventListener('mousemove', handleMouseMove)
   document.addEventListener('mouseup', handleMouseUp)
+  document.addEventListener('dragend', handleDragEndCleanup)
 })
 
 onUnmounted(() => {
   document.removeEventListener('mousemove', handleMouseMove)
   document.removeEventListener('mouseup', handleMouseUp)
+  document.removeEventListener('dragend', handleDragEndCleanup)
 })
 </script>
 
@@ -275,7 +310,8 @@ onUnmounted(() => {
     class="main-canvas"
     @click="handleCanvasClick"
     @dragover="handleDragOver"
-    @dragleave="isNativeDrag = false"
+    @dragenter="handleDragEnter"
+    @dragleave="handleDragLeave"
     @drop="handleDrop"
   >
     <!-- 画布正中央淡灰色十字架 -->
@@ -301,6 +337,7 @@ onUnmounted(() => {
         'bar-chart-type': widget.type === 'barChart',
         'mini-area-type': widget.type === 'miniArea',
         'decorative-text-type': widget.type === 'decorativeText',
+        'image-type': widget.type === 'image' || widget.type === 'light',
         transparent: isWidgetTransparent(widget),
         'center-title-fullscreen': shouldCenterTitleFullscreen(widget)
       }"
@@ -311,25 +348,22 @@ onUnmounted(() => {
       <div class="widget-header">
         <h3 v-if="shouldShowTitle(widget)">{{ getWidgetTitle(widget) }}</h3>
         <span v-else class="widget-title-placeholder"></span>
-        <button
+        <span
           v-if="props.showControls"
-          class="btn btn-danger btn-sm"
-          style="padding: 2px 8px; font-size: 12px;"
+          class="widget-delete"
           @click.stop="handleDeleteWidget(widget.id)"
-        >
-          删除
-        </button>
+        >×</span>
       </div>
       <div class="widget-content">
         <LineChartWidget
           v-if="widget.type === 'lineChart'"
           :config="getWidgetConfig(widget)"
-          :data="widgetData[widget.id] || {}"
+          :data="widgetData[widget.id] || EMPTY_OBJ"
         />
         <BarChartWidget
           v-else-if="widget.type === 'barChart'"
           :config="widget.config"
-          :data="(widgetData[widget.id]?.[widget.id]) || []"
+          :data="(widgetData[widget.id]?.[widget.id]) || EMPTY_ARR"
         />
         <ButtonWidget
           v-else-if="widget.type === 'button'"
@@ -338,17 +372,18 @@ onUnmounted(() => {
         <SwitchWidget
           v-else-if="widget.type === 'switch'"
           :config="widget.config"
-          :data="widgetData[widget.id] || {}"
+          :data="widgetData[widget.id] || EMPTY_OBJ"
         />
         <SliderWidget
           v-else-if="widget.type === 'slider'"
           :config="widget.config"
-          :data="widgetData[widget.id] || {}"
+          :data="widgetData[widget.id] || EMPTY_OBJ"
         />
         <TextWidget
           v-else-if="widget.type === 'text' || widget.type === 'textarea'"
           :config="widget.config"
-          :data="widgetData[widget.id] || {}"
+          :data="widgetData[widget.id] || EMPTY_OBJ"
+          :widget-type="widget.type"
         />
         <MiniAreaWidget
           v-else-if="widget.type === 'miniArea'"
@@ -362,12 +397,21 @@ onUnmounted(() => {
         <RadioWidget
           v-else-if="widget.type === 'radio'"
           :config="widget.config"
-          :data="widgetData[widget.id] || {}"
+          :data="widgetData[widget.id] || EMPTY_OBJ"
           @resize="(width, height) => emit('updateWidgetSize', widget.id, width, height)"
         />
         <DecorativeTextWidget
           v-else-if="widget.type === 'decorativeText'"
           :config="widget.config as any"
+        />
+        <ImageWidget
+          v-else-if="widget.type === 'image'"
+          :config="widget.config as any"
+        />
+        <LightWidget
+          v-else-if="widget.type === 'light'"
+          :config="widget.config as any"
+          :data="widgetData[widget.id] || EMPTY_OBJ"
         />
       </div>
       <div 

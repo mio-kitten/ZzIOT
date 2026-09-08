@@ -534,7 +534,6 @@ onUnmounted(() => {
       <div class="modal-content">
         <div class="modal-header">
           <h2>新建项目</h2>
-          <button class="close-btn" @click="closeCreateModal">×</button>
         </div>
         <div class="modal-body">
           <div class="config-item">
@@ -560,7 +559,6 @@ onUnmounted(() => {
       <div class="modal-content">
         <div class="modal-header">
           <h2>确认删除</h2>
-          <button class="close-btn" @click="cancelDelete">×</button>
         </div>
         <div class="modal-body">
           <p>确定要删除该项目吗？此操作无法撤销。</p>
@@ -576,7 +574,6 @@ onUnmounted(() => {
       <div class="modal-content">
         <div class="modal-header">
           <h2>修改项目名称</h2>
-          <button class="close-btn" @click="closeRenameModal">×</button>
         </div>
         <div class="modal-body">
           <div class="config-item">
@@ -973,11 +970,15 @@ onUnmounted(() => {
 }
 
 .btn {
-  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 18px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
+  line-height: 1.2;
   font-weight: 500;
   transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }

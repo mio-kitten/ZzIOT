@@ -149,12 +149,29 @@ export class MqttClientWrapper {
     }
   }
 
+  /** 取消正在进行的连接尝试（不触发已连接的回调） */
+  abortConnect(): void {
+    if (this.client) {
+      this.client.end(true)
+      this.client = null
+    }
+    this.subscribedTopics.clear()
+    this.onMessageCallback = null
+    if (this.connectReject) {
+      this.connectReject(new Error('连接已取消'))
+      this.connectReject = null
+    }
+    this.connectResolve = null
+  }
+
   disconnect(): void {
     if (this.client) {
       this.client.end(true)
       this.client = null
     }
     this.subscribedTopics.clear()
+    this.onMessageCallback = null
+    this.onStatusChange = null
   }
 
   setOnMessageCallback(callback: (topic: string, message: string) => void): void {

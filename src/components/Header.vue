@@ -27,6 +27,7 @@ const emit = defineEmits<{
   openIoTService: []
   exportProjects: []
   importProjects: [files: FileList]
+  checkUpdate: []
 }>()
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -68,72 +69,104 @@ const headerTitle = computed(() => {
 <template>
   <header class="blue-header">
     <div class="header-left">
-      <button v-if="showProjectManagerBtn" class="btn btn-secondary" @click="emit('openProjectManager')" style="margin-right: 12px;">
-        项目管理
-      </button>
-      <button v-if="!showProjectSelector" class="btn btn-secondary" @click="emit('createProject')" style="margin-right: 12px;">
-        + 新建项目
-      </button>
-      <button v-if="!showProjectSelector" class="btn btn-secondary" @click="handleExport" style="margin-right: 12px;" title="导出项目到文件">
-        ↑ 导出
-      </button>
-      <button v-if="!showProjectSelector" class="btn btn-secondary" @click="handleImportClick" style="margin-right: 12px;" title="从JSON文件导入项目">
-        ↓ 导入
-      </button>
-      <input
-        ref="fileInputRef"
-        type="file"
-        accept=".json"
-        multiple
-        style="display: none"
-        @change="handleFileChange"
-      />
-      <button v-if="!showProjectSelector" class="btn btn-secondary" @click="emit('openIoTService')" style="margin-right: 12px;">
-        内网服务
-      </button>
-      <select v-if="showProjectSelector" :value="projectId" class="project-select" :disabled="switchCooldown" @change="handleChangeProject" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px;">
-        <option v-if="projects.length === 0" value="">未选择项目</option>
-        <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option>
-      </select>
-      <button v-if="showProjectSelector" class="btn btn-secondary" @click="emit('openIoTService')" style="margin-left: 12px;">
-        内网服务
-      </button>
+      <Transition name="title-switch" mode="out-in" appear>
+        <div v-if="showProjectManagerBtn" key="editor" style="display: flex; align-items: center;">
+          <button class="btn btn-secondary" @click="emit('openProjectManager')" style="margin-right: 12px;">
+            项目管理
+          </button>
+          <select :value="projectId" class="project-select" :disabled="switchCooldown" @change="handleChangeProject" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px;">
+            <option v-if="projects.length === 0" value="">未选择项目</option>
+            <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option>
+          </select>
+          <button class="btn btn-secondary" @click="emit('openIoTService')" style="margin-left: 12px;">
+            内网服务
+          </button>
+        </div>
+        <div v-else key="pm" style="display: flex; align-items: center;">
+          <button class="btn btn-secondary" @click="emit('createProject')" style="margin-right: 12px;">
+            + 新建项目
+          </button>
+          <button class="btn btn-secondary" @click="handleExport" style="margin-right: 12px;" title="导出项目到文件">
+            ↑ 导出
+          </button>
+          <button class="btn btn-secondary" @click="handleImportClick" style="margin-right: 12px;" title="从JSON文件导入项目">
+            ↓ 导入
+          </button>
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept=".zipd"
+            multiple
+            style="display: none"
+            @change="handleFileChange"
+          />
+          <button class="btn btn-secondary" @click="emit('openIoTService')" style="margin-right: 12px;">
+            内网服务
+          </button>
+        </div>
+      </Transition>
     </div>
     
-    <h1>{{ headerTitle }}</h1>
+    <Transition name="title-switch" mode="out-in" appear>
+      <h1 :key="headerTitle">{{ headerTitle }}</h1>
+    </Transition>
     
     <div class="header-right">
-      <div class="connection-status" :class="{ connected: isConnected, disconnected: !isConnected }">
-        <span class="status-dot" :class="{ connected: isConnected, disconnected: !isConnected }"></span>
-        <span>{{ isConnected ? '已连接' : '未连接' }}</span>
-      </div>
-      
-      <button
-        class="btn"
-        :class="isConnected ? 'btn-danger' : 'btn-success'"
-        @click="isConnected ? emit('disconnect') : emit('connect')"
-        style="margin-left: 12px;"
-      >
-        {{ isConnected ? '断开连接' : '连接平台' }}
-      </button>
-      
-      <button
-        v-if="showProjectSelector"
-        class="btn btn-secondary"
-        style="margin-left: 12px;"
-        @click="emit('scrollToCenter')"
-      >
-        回到画布中心
-      </button>
-      
-      <button 
-        v-if="showFullscreenBtn && showProjectSelector"
-        class="btn btn-secondary" 
-        style="margin-left: 12px;"
-        @click="emit('toggleFullscreen')"
-      >
-        全屏
-      </button>
+      <Transition name="title-switch" mode="out-in" appear>
+        <div v-if="showProjectSelector" key="editor" style="display: flex; align-items: center;">
+          <div class="connection-status">
+            <span class="status-dot" :class="{ connected: isConnected, disconnected: !isConnected }"></span>
+          </div>
+          
+          <button
+            class="btn"
+            :class="isConnected ? 'btn-danger' : 'btn-success'"
+            @click="isConnected ? emit('disconnect') : emit('connect')"
+            style="margin-left: 8px;"
+          >
+            {{ isConnected ? '断开连接' : '连接平台' }}
+          </button>
+          
+          <button v-if="!isEditorMode" class="btn btn-secondary" style="margin-left: 12px;" @click="emit('checkUpdate')" title="检查GitHub是否有新版本">
+            检查更新
+          </button>
+          
+          <button
+            class="btn btn-secondary"
+            style="margin-left: 12px;"
+            @click="emit('scrollToCenter')"
+          >
+            回到画布中心
+          </button>
+          
+          <button 
+            v-if="showFullscreenBtn"
+            class="btn btn-secondary" 
+            style="margin-left: 12px;"
+            @click="emit('toggleFullscreen')"
+          >
+            全屏
+          </button>
+        </div>
+        <div v-else key="pm" style="display: flex; align-items: center;">
+          <div class="connection-status">
+            <span class="status-dot" :class="{ connected: isConnected, disconnected: !isConnected }"></span>
+          </div>
+          
+          <button
+            class="btn"
+            :class="isConnected ? 'btn-danger' : 'btn-success'"
+            @click="isConnected ? emit('disconnect') : emit('connect')"
+            style="margin-left: 8px;"
+          >
+            {{ isConnected ? '断开连接' : '连接平台' }}
+          </button>
+          
+          <button v-if="!isEditorMode" class="btn btn-secondary" style="margin-left: 12px;" @click="emit('checkUpdate')" title="检查GitHub是否有新版本">
+            检查更新
+          </button>
+        </div>
+      </Transition>
     </div>
   </header>
 </template>
@@ -160,6 +193,21 @@ const headerTitle = computed(() => {
   margin: 0;
 }
 
+/* 标题切换动画：先隐藏再虚化淡入，共 0.5s */
+.title-switch-enter-active {
+  transition: opacity 0.35s ease, filter 0.35s ease;
+}
+.title-switch-leave-active {
+  transition: opacity 0.15s ease;
+}
+.title-switch-enter-from {
+  opacity: 0;
+  filter: blur(6px);
+}
+.title-switch-leave-to {
+  opacity: 0;
+}
+
 .project-select {
   transition: box-shadow 0.2s;
 }
@@ -174,11 +222,15 @@ const headerTitle = computed(() => {
 }
 
 .btn {
-  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 18px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
+  line-height: 1.2;
   transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
   font-weight: 500;
 }
@@ -195,41 +247,39 @@ const headerTitle = computed(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-}
-
-.connection-status.connected {
-  background: #00c853;
-  color: #ffffff;
-  font-weight: 700;
-  border: 1.5px solid #00e676;
-  box-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
-}
-
-.connection-status.disconnected {
-  background: #e53935;
-  color: #ffffff;
-  font-weight: 700;
-  border: 1.5px solid #ff5252;
-  box-shadow: 0 0 10px rgba(255, 82, 82, 0.5);
+  padding: 8px 14px;
+  font-size: 14px;
+  color: #333;
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
 .status-dot.connected {
-  background: #ffffff;
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+  background: #00e676;
+  box-shadow: 0 0 8px rgba(0, 230, 118, 0.6);
 }
 
 .status-dot.disconnected {
-  background: #ffffff;
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+  background: #ff5252;
+  box-shadow: 0 0 8px rgba(255, 82, 82, 0.6);
+}
+
+.status-text {
+  line-height: 1;
+}
+
+.status-text.connected {
+  color: #00e676;
+}
+
+.status-text.disconnected {
+  color: #ff5252;
 }
 
 .btn-success {

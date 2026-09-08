@@ -10,9 +10,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ZzIOT-内网数据面板</title>
   <style>
+    @font-face {
+      font-family: 'HarmonyOS Sans SC';
+      src: url('./fonts/HarmonyOS_Sans_SC.ttf') format('truetype');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'HarmonyOS Sans SC';
+      src: url('./fonts/HarmonyOS_Sans_SC.ttf') format('truetype');
+      font-weight: 700;
+      font-style: normal;
+      font-display: swap;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+      font-family: 'HarmonyOS Sans SC', 'Microsoft YaHei', 'PingFang SC', sans-serif;
       background: #f0f2f5;
       color: #333;
       height: 100vh;
@@ -193,6 +207,10 @@
       font-family: 'Consolas', 'Monaco', monospace;
       min-width: 75px;
     }
+    .message-item.latest .message-time {
+      color: #1a73e8;
+      font-weight: 600;
+    }
     .message-payload {
       flex: 1;
       word-break: break-all;
@@ -202,6 +220,11 @@
       background: #f8f9fa;
       padding: 4px 10px;
       border-radius: 4px;
+    }
+    .message-item.latest .message-payload {
+      color: #1a73e8;
+      background: #e8f0fe;
+      border: 1px solid #1a73e8;
     }
     .empty-state {
       flex: 1;
@@ -472,7 +495,7 @@
     </div>
   </div>
   <div class="footer">
-    <span>ZzIOT-内网数据面板 | V2.4.1-Y</span>
+    <span>ZzIOT-内网数据面板 | 3.0.26.908</span>
     <span>By—雪菱(mio-kitten)</span>
   </div>
 
@@ -480,30 +503,43 @@
     let topics = []
     let selectedTopic = null
     let msgDialogResolve = null
+    let msgDialogTimer = null
     let projectId = ''
 
+    function prepareDialog() {
+      const dialog = document.getElementById('msgDialog')
+      dialog.classList.remove('closing')
+      dialog.style.display = 'flex'
+      if (msgDialogTimer) {
+        clearTimeout(msgDialogTimer)
+        msgDialogTimer = null
+      }
+      msgDialogResolve = null
+    }
+
     function showAlert(title, message) {
+      prepareDialog()
       const content = document.getElementById('msgDialog').querySelector('.msg-dialog-content')
       content.className = 'msg-dialog-content'
       document.getElementById('msgDialogTitle').textContent = title
       document.getElementById('msgDialogBody').textContent = message
       const actions = document.getElementById('msgDialogActions')
       actions.innerHTML = '<button class="msg-btn msg-btn-primary" onclick="closeMsgDialog()">确认</button>'
-      document.getElementById('msgDialog').style.display = 'flex'
     }
 
     function showWarning(title, message) {
+      prepareDialog()
       const content = document.getElementById('msgDialog').querySelector('.msg-dialog-content')
       content.className = 'msg-dialog-content warning'
       document.getElementById('msgDialogTitle').textContent = title
       document.getElementById('msgDialogBody').innerHTML = message
       const actions = document.getElementById('msgDialogActions')
       actions.innerHTML = '<button class="msg-btn msg-btn-warning" onclick="closeMsgDialog()">我知道了</button>'
-      document.getElementById('msgDialog').style.display = 'flex'
     }
 
     function showConfirm(title, message) {
       return new Promise((resolve) => {
+        prepareDialog()
         const content = document.getElementById('msgDialog').querySelector('.msg-dialog-content')
         content.className = 'msg-dialog-content'
         document.getElementById('msgDialogTitle').textContent = title
@@ -511,14 +547,17 @@
         msgDialogResolve = resolve
         const actions = document.getElementById('msgDialogActions')
         actions.innerHTML = '<button class="msg-btn" onclick="closeMsgDialog(false)">取消</button><button class="msg-btn msg-btn-primary" onclick="closeMsgDialog(true)">确认</button>'
-        document.getElementById('msgDialog').style.display = 'flex'
       })
     }
 
     function closeMsgDialog(result) {
       const dialog = document.getElementById('msgDialog')
       dialog.classList.add('closing')
-      setTimeout(() => {
+      if (msgDialogTimer) {
+        clearTimeout(msgDialogTimer)
+      }
+      msgDialogTimer = setTimeout(() => {
+        msgDialogTimer = null
         dialog.style.display = 'none'
         dialog.classList.remove('closing')
         if (msgDialogResolve) {
@@ -593,7 +632,7 @@
         const preview = lastMsg.length > 10 ? lastMsg.slice(0, 10) + '...' : lastMsg
         const isSystem = t.topic === '系统信息'
         const modeDot = isSystem ? '<span class="mode-dot system" title="系统信息"></span>' : '<span class="mode-dot siot" title="SIoT模式"></span>'
-        return `<div class="topic-item${active}${isSystem ? ' system-topic' : ''}" onclick="selectTopic('${escapeHtml(t.topic)}')">
+        return `<div class="topic-item${active}${isSystem ? ' system-topic' : ''}" data-topic="${escapeAttr(t.topic)}" onclick="selectTopic('${escapeHtml(t.topic)}')">
           <span class="topic-name">${modeDot}${escapeHtml(t.topic)}</span>
           <span class="topic-recent">${escapeHtml(preview)}</span>
           <span class="topic-msg-count">${t.messages.length}条</span>
@@ -609,7 +648,7 @@
       document.getElementById('lastSent').textContent = ''
       renderHeader(topicName, topic)
       if (topic) {
-        renderMessages(topic)
+        renderMessages(topic, true)
       }
       
       // 先渲染列表，不显示active状态
@@ -617,10 +656,7 @@
       
       // 找到目标元素并执行回弹动画
       requestAnimationFrame(() => {
-        const topicItems = document.querySelectorAll('.topic-item')
-        const targetItem = Array.from(topicItems).find(item => 
-          item.onclick && item.onclick.toString().includes(topicName)
-        )
+        const targetItem = document.querySelector(`.topic-item[data-topic="${escapeAttr(topicName)}"]`)
         
         if (targetItem) {
           targetItem.getAnimations().forEach(a => a.cancel())
@@ -660,21 +696,27 @@
       }
     }
 
-    function renderMessages(topic) {
+    function renderMessages(topic, resetScroll) {
       const el = document.getElementById('messageList')
       if (!topic.messages || topic.messages.length === 0) {
         el.innerHTML = '<div class="empty-state"><span class="icon">📭</span><span>暂无消息</span></div>'
         renderHeader(topic.topic, topic)
         return
       }
-      el.innerHTML = topic.messages.slice().reverse().map(m => {
+      const prevScrollTop = el.scrollTop
+      el.innerHTML = topic.messages.slice().reverse().map((m, idx) => {
         const time = new Date(m.timestamp).toLocaleTimeString('zh-CN', { hour12: false })
-        return `<div class="message-item">
+        const latestClass = idx === 0 ? ' latest' : ''
+        return `<div class="message-item${latestClass}">
           <span class="message-time">${time}</span>
           <span class="message-payload">${escapeHtml(m.payload)}</span>
         </div>`
       }).join('')
-      el.scrollTop = 0
+      if (resetScroll) {
+        el.scrollTop = 0
+      } else {
+        el.scrollTop = prevScrollTop
+      }
       renderHeader(topic.topic, topic)
     }
 
@@ -739,10 +781,10 @@
         return
       }
       hideCreateDialog()
-      await fetch(`/api/topics/${encodeURIComponent(name)}/publish`, {
+      await fetch('/api/topics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payload: '主题已创建' })
+        body: JSON.stringify({ topic: name })
       })
       await fetchTopics()
       selectTopic(name)
@@ -830,6 +872,10 @@
       return div.innerHTML
     }
 
+    function escapeAttr(str) {
+      return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+    }
+
     document.getElementById('newTopicName').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') createTopic()
     })
@@ -841,7 +887,7 @@
       if (topics.some(t => t.topic === '系统信息')) {
         selectTopic('系统信息')
       }
-      showWarning('请勿关闭系统命令窗口', '如果不小心关闭了内网的<span class="highlight">系统命令窗口</span>（显示IP的），请使用一键启动里面的<span class="highlight">只启用服务不自动打开（手动模式）</span>，并且<span class="highlight">不用刷新页面</span>，网页会自动连接。')
+      showWarning('请勿关闭系统命令窗口', '如果不小心关闭了内网的<span class="highlight">系统命令窗口</span>（显示IP的），请再次使用启动文件<span class="highlight">启动内网服务</span>，并且<span class="highlight">不用刷新页面</span>，网页会自动连接。')
     })
     startAutoRefresh()
   </script>

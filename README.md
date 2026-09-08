@@ -3,7 +3,7 @@
 # ZzIOT 
 ### > 一个物联网数据可视化面板 + 本地内网创建服务(包括无网) 的集合体工具 <
 ---
-[![version](https://img.shields.io/badge/V2.4.1*Y-orange)](https://github.com/mio-kitten/zziot)
+[![version](https://img.shields.io/badge/3.0.26.908-orange)](https://github.com/mio-kitten/zziot)
 [![platform](https://img.shields.io/badge/Windows%2010%2B-red)](https://github.com/mio-kitten/zziot)
 [![Node.js](https://img.shields.io/badge/Node.js-339933)](https://nodejs.org/)
 [![Vue](https://img.shields.io/badge/Vue%203-4FC08D)](https://vuejs.org/)
@@ -21,7 +21,7 @@
 | **已支持的平台** | Windows 10 及以上X64 |
 | **组件数量** | 11 个 |
 | **状态** | 开发中 |
-|**版本** | V2.4.1-Y | 
+|**版本** | 3.0.26.908 | 
 
 ---
 
@@ -50,7 +50,7 @@
 
 ### 🎈项目管理界面
 
-![项目管理界面](屏幕截图_18-7-2026_141053_localhost.jpeg)
+![项目管理界面](其他文件/屏幕截图_5-9-2026_1917_localhost.jpeg)
 
 ---
 
@@ -63,12 +63,12 @@
 **2.** 运行方式：
    - 直接下载本项目所有文件并放在任意文件夹
    - 点击 `检查安装依赖.bat`，程序会自动检查本机使用架构并调用文件夹中对应的 Node.js 安装包进行安装，然后检查是否安装vue等相关依赖并安装
-   - 如果安装失败，按照本机系统的架构选择运行 `node-v24.18.0-x64.msi` 或 `node-v24.18.0-arm64.msi` 安装包或检查网络连接
+   - 如果安装失败，按照本机系统的架构选择运行 `node-v26.8.1-x64.msi` 或 `node-v26.8.1-arm64.msi` 安装包或检查网络连接
    - 安装完成后，不要再点击"检查安装依赖"，根据需求运行`启动可视化面板.bat`或`启动内网服务.bat`即可
 
 **3.** 环境要求：
    - 本项目基于 Vue 与 Node.js 开发，需要浏览器支持
-   - 因为 Node.js v24 安装需要 Windows 10 或更高版本且无 X86 版本的安装包（32位），本项目理应只支持 Windows 10 及以上 X64 版本
+   - 因为 Node.js v26 安装需要 Windows 10 或更高版本且无 X86 版本的安装包（32位），本项目理应只支持 Windows 10 及以上 X64 版本
 
 **4.** 组件支持：能力有限，目前仅实现了 11 个组件：
    - BarChartWidget（柱状图）
@@ -85,11 +85,11 @@
 
 ### 🎈编辑界面
 
-![编辑界面](屏幕截图_29-7-2026_152217_localhost.jpeg)
+![组件库](其他文件/屏幕截图 2026-09-05 012430.png)
 
 ### 🎈数据管理界面
 
-![数据管理界面](屏幕截图_18-7-2026_141040_192.168.1.49.jpeg)
+![数据管理界面](其他文件/屏幕截图_5-9-2026_1270_192.168.1.19.jpeg)
 
 
 ---
@@ -98,7 +98,7 @@
 
 #### 或
 
-### 用123云盘下载（V2.4.1-Y）：
+### 用123云盘下载（3.0.26.908）：
 
 [网盘链接（rar包体59.56 MB）](https://1842972489.share.123pan.cn/123pan/SJqUTd-M9Xe3)
 > 提取码：NOTH

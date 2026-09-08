@@ -19,16 +19,24 @@ let chartInstance: Chart | null = null
 let resizeObserver: ResizeObserver | null = null
 let animTimeout: ReturnType<typeof setTimeout> | null = null
 
+const hasEverReceivedData = ref(false)
+
+const isValidNumber = (v: any): v is number => typeof v === 'number' && !isNaN(v)
+
 const displayData = computed(() => {
-  return props.data.slice(-(props.config.maxDataPoints || 10))
+  return props.data.filter(d => isValidNumber(d.value)).slice(-(props.config.maxDataPoints || 10))
 })
 
 const currentValue = computed(() => {
   if (displayData.value.length > 0) {
     return displayData.value[displayData.value.length - 1].value
   }
-  return '--'
+  return hasEverReceivedData.value ? '' : '--'
 })
+
+watch(() => props.data, (newData) => {
+  hasEverReceivedData.value = newData && newData.length > 0
+}, { deep: true, immediate: true })
 
 const createChart = () => {
   if (!chartCanvas.value) return
@@ -116,10 +124,16 @@ const updateChart = () => {
     animTimeout = null
   }
   
+  // 始终更新颜色，即使数据未变化
+  const barColor = props.config.color || '#5c9ce6'
+  const ds = chartInstance.data.datasets[0]
+  if (ds) {
+    ds.backgroundColor = barColor
+    ds.borderColor = barColor
+  }
+  
   if (data.length === 0) {
-    // 清空图表数据
-    chartInstance.data.labels!.length = 0
-    chartInstance.data.datasets[0].data.length = 0
+    // 无新数据时保留历史数据，仅更新颜色
     chartInstance.update('none')
     return
   }
@@ -130,40 +144,25 @@ const updateChart = () => {
   })
   
   const newValues = data.map(v => v.value)
-  const ds = chartInstance.data.datasets[0]
   if (!ds) return
+  
+  // 数据未变化则跳过重绘
+  const curData = ds.data as number[]
+  if (curData.length === newValues.length && curData.every((v, i) => v === newValues[i])) {
+    chartInstance.update('none')
+    return
+  }
   
   // 更新 labels
   chartInstance.data.labels!.length = 0
   chartInstance.data.labels!.push(...labels)
   
-  const maxLen = props.config.maxDataPoints || 10
-  const isFull = data.length >= maxLen
-  
-  if (isFull) {
-    // 满容量：两步更新（闪现 + 移位）
-    // Step 1: 新数据先闪现到最后一列（无动画）
-    ds.data[newValues.length - 1] = newValues[newValues.length - 1]
-    chartInstance.update('none')
-    
-    // Step 2: 旧数据集体往左移（带动画）
-    animTimeout = setTimeout(() => {
-      if (!chartInstance) return
-      const ds2 = chartInstance.data.datasets[0]
-      if (!ds2) return
-      for (let i = 0; i < newValues.length - 1; i++) {
-        ds2.data[i] = newValues[i]
-      }
-      chartInstance.update()
-      animTimeout = null
-    }, 80)
-  } else {
-    // 未满容量：直接延长数组+默认动画，新元素自然动画进入
-    for (let i = 0; i < newValues.length; i++) {
-      ds.data[i] = newValues[i]
-    }
-    chartInstance.update()
+  // 统一使用简单动画：直接延长数组，新元素自然动画进入
+  for (let i = 0; i < newValues.length; i++) {
+    ds.data[i] = newValues[i]
   }
+  ds.data.length = newValues.length
+  chartInstance.update()
 }
 
 const handleResize = () => {
@@ -175,6 +174,10 @@ const handleResize = () => {
 watch(() => props.data, () => {
   updateChart()
 }, { deep: true, immediate: true })
+
+watch(() => props.config.color, () => {
+  updateChart()
+})
 
 watch(() => props.config.labelText, () => {
   if (chartInstance) {

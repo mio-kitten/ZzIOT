@@ -31,6 +31,16 @@ if not exist "node_modules\" (
     exit /b
 )
 
+REM 检查 JSZip 是否安装
+if not exist "node_modules\jszip\" (
+    echo [错误] JSZip 未安装，图片导出功能将不可用
+    echo 请先运行"检查安装依赖.bat"安装 JSZip 依赖
+    echo.
+    echo 按下任意键退出...
+    pause >nul
+    exit /b
+)
+
 echo 请选择启动方式：
 echo.
 echo  [1] 自动打开浏览器

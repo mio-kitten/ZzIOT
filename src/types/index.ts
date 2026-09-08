@@ -1,3 +1,4 @@
+
 /**
  * 全局 TypeScript 类型定义
  * 包含项目、组件、平台配置、MQTT 数据等所有核心数据结构
@@ -28,6 +29,12 @@ export interface ThemeConfig {
   color: string
 }
 
+export interface LightColorConfig {
+  id: string
+  matchValue: string
+  color: string
+}
+
 export interface LineChartWidgetConfig {
   id: string
   title: string
@@ -44,8 +51,8 @@ export interface LineChartWidgetConfig {
 
 export interface Widget {
   id: string
-  type: 'lineChart' | 'barChart' | 'text' | 'miniArea' | 'button' | 'switch' | 'slider' | 'input' | 'textarea' | 'radio' | 'decorativeText'
-  config: LineChartWidgetConfig | Record<string, unknown>
+  type: 'lineChart' | 'barChart' | 'text' | 'miniArea' | 'button' | 'switch' | 'slider' | 'input' | 'textarea' | 'radio' | 'decorativeText' | 'image' | 'light'
+  config: Record<string, unknown>
 }
 
 export interface Project {

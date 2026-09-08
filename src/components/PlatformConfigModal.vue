@@ -19,7 +19,7 @@ const platform = ref<'siot' | 'bafayun'>('siot')
 
 const siotConfig = ref<SiotConfig>({
   server: '127.0.0.1',
-  port: 1888,
+  port: 1883,
   username: 'siot',
   password: 'dfrobot'
 })
@@ -38,7 +38,7 @@ watch(() => props.config, (newConfig) => {
     
     siotConfig.value = {
       server: newConfig.siot?.server || '127.0.0.1',
-      port: newConfig.siot?.port || 1888,
+      port: newConfig.siot?.port || 1883,
       username: newConfig.siot?.username || 'siot',
       password: newConfig.siot?.password || 'dfrobot'
     }
@@ -103,7 +103,6 @@ const handleConfirm = () => {
     <div class="modal-content">
       <div class="modal-header">
         <h2>选择物联网平台</h2>
-        <button class="close-btn" @click="handleClose">×</button>
       </div>
       
       <div class="modal-body">
@@ -128,7 +127,9 @@ const handleConfirm = () => {
           </label>
         </div>
         
-        <template v-if="platform === 'siot'">
+        <div class="config-body">
+        <Transition name="content-blur" mode="out-in">
+        <div key="siot" v-if="platform === 'siot'">
           <div class="config-item">
             <label>服务器地址</label>
             <input v-model="siotConfig.server" type="text" placeholder="请输入服务器地址" />
@@ -138,6 +139,9 @@ const handleConfirm = () => {
             <label>端口</label>
             <div class="port-warning" v-if="isInternalNetwork">
               ⚠ 1853是本项目的内网端口，其余会默认为SIoT V2
+            </div>
+            <div class="port-warning" v-if="!isInternalNetwork">
+              💡 <span style="color:#e74c3c;">1883</span>是SIOT默认连接端口&nbsp;&nbsp;→&nbsp;&nbsp;填<span style="color:#e74c3c;">1853</span>可切换为内网连接
             </div>
             <input v-model.number="siotConfig.port" type="number" />
           </div>
@@ -153,9 +157,9 @@ const handleConfirm = () => {
               <input v-model="siotConfig.password" type="password" placeholder="请输入密码" />
             </div>
           </template>
-        </template>
+        </div>
         
-        <template v-else>
+        <div key="bafayun" v-else>
           <div class="config-item">
             <label>服务器地址</label>
             <input v-model="bafayunConfig.server" type="text" placeholder="请输入服务器地址" />
@@ -171,19 +175,25 @@ const handleConfirm = () => {
             <input v-model="bafayunConfig.privateKey" type="text" placeholder="请输入巴法云的私钥" />
           </div>
           
+          <div class="hint-panel">
+            通过 MQTT 标准协议，直接连接巴法云的 MQTT Broker，不依赖网页端是否打开
+          </div>
+          
           <div class="info-panel">
             <h4>巴法云配置说明</h4>
             <p>
               私钥在巴法云控制台获取<br/>
-              服务器地址固定为 bemfa.com<br/>
-              端口固定为 9504
+              服务器地址默认为 bemfa.com<br/>
+              端口默认为 9504
             </p>
           </div>
-        </template>
+        </div>
+        </Transition>
+        </div>
       </div>
       
       <div class="modal-footer">
-        <button class="btn btn-secondary" @click="emit('cancel')">取消</button>
+        <button class="btn btn-secondary" @click="handleClose">取消</button>
         <button class="btn btn-success" @click="handleConfirm">完成</button>
       </div>
     </div>
@@ -255,6 +265,17 @@ const handleConfirm = () => {
   margin-top: 16px;
 }
 
+.hint-panel {
+  background: #e3f2fd;
+  border: 1px solid #90caf9;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: #1565c0;
+  line-height: 1.5;
+}
+
 .info-panel h4 {
   font-size: 13px;
   margin-bottom: 8px;
@@ -273,15 +294,18 @@ const handleConfirm = () => {
   justify-content: flex-end;
   gap: 10px;
   padding-top: 16px;
-  border-top: 1px solid #eee;
 }
 
 .btn {
-  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 18px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
+  line-height: 1.2;
   font-weight: 500;
   transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -302,5 +326,48 @@ const handleConfirm = () => {
 .btn-secondary {
   background-color: #e8e8e8;
   color: #444;
+}
+
+.config-body {
+  height: 175px;
+  overflow-y: auto;
+}
+
+:deep(.modal-content) {
+  min-width: 384px !important;
+  max-width: 384px !important;
+  width: 384px !important;
+}
+
+.config-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.config-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.config-body::-webkit-scrollbar-thumb {
+  background: #c0c0c0;
+  border-radius: 3px;
+}
+
+.config-body::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}
+
+.content-blur-enter-active {
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+.content-blur-leave-active {
+  transition: opacity 0.15s ease, filter 0.15s ease;
+}
+.content-blur-enter-from {
+  opacity: 0;
+  filter: blur(6px);
+}
+.content-blur-leave-to {
+  opacity: 0;
+  filter: blur(6px);
 }
 </style>

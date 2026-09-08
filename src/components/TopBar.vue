@@ -33,58 +33,68 @@ const handleChangeProject = (e: Event) => {
 <template>
   <div class="top-bar" :class="{ visible: isVisible }">
     <div class="top-bar-left">
-      <button 
-        class="btn btn-secondary"
-        @click="emit('openProjectManager')"
-        style="margin-right: 12px;"
-      >
-        项目管理
-      </button>
-      <select :value="projectId" class="project-select" :disabled="switchCooldown" @change="handleChangeProject" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px;">
-        <option v-if="projects.length === 0" value="">未选择项目</option>
-        <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option>
-      </select>
-      <button
-        class="btn btn-secondary"
-        style="margin-left: 12px;"
-        @click="emit('openIoTService')"
-      >
-        内网服务
-      </button>
+      <Transition name="title-switch" appear>
+        <div style="display: flex; align-items: center;">
+          <button 
+            class="btn btn-secondary"
+            @click="emit('openProjectManager')"
+            style="margin-right: 12px;"
+          >
+            项目管理
+          </button>
+          <select :value="projectId" class="project-select" :disabled="switchCooldown" @change="handleChangeProject" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px;">
+            <option v-if="projects.length === 0" value="">未选择项目</option>
+            <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option>
+          </select>
+          <button
+            class="btn btn-secondary"
+            style="margin-left: 12px;"
+            @click="emit('openIoTService')"
+          >
+            内网服务
+          </button>
+        </div>
+      </Transition>
     </div>
     
-    <h1 class="top-bar-title">{{ title }}</h1>
+    <Transition name="title-switch" mode="out-in" appear>
+      <h1 class="top-bar-title" :key="title">{{ title }}</h1>
+    </Transition>
     
     <div class="top-bar-right">
-      <div class="connection-status" :class="{ connected: isConnected, disconnected: !isConnected }">
-        <span class="status-dot" :class="{ connected: isConnected, disconnected: !isConnected }"></span>
-        <span>{{ isConnected ? '已连接' : '未连接' }}</span>
-      </div>
-      
-      <button
-        class="btn"
-        :class="isConnected ? 'btn-danger' : 'btn-success'"
-        @click="isConnected ? emit('disconnect') : emit('connect')"
-        style="margin-left: 12px;"
-      >
-        {{ isConnected ? '断开连接' : '连接平台' }}
-      </button>
-      
-      <button
-        class="btn btn-secondary"
-        style="margin-left: 12px;"
-        @click="emit('scrollToCenter')"
-      >
-        回到画布中心
-      </button>
-      
-      <button 
-        class="btn btn-secondary"
-        @click="emit('exitFullscreen')"
-        style="margin-left: 12px;"
-      >
-        退出全屏
-      </button>
+      <Transition name="title-switch" appear>
+        <div style="display: flex; align-items: center;">
+          <div class="connection-status" :class="{ connected: isConnected, disconnected: !isConnected }">
+            <span class="status-dot" :class="{ connected: isConnected, disconnected: !isConnected }"></span>
+            <span>{{ isConnected ? '已连接' : '未连接' }}</span>
+          </div>
+          
+          <button
+            class="btn"
+            :class="isConnected ? 'btn-danger' : 'btn-success'"
+            @click="isConnected ? emit('disconnect') : emit('connect')"
+            style="margin-left: 12px;"
+          >
+            {{ isConnected ? '断开连接' : '连接平台' }}
+          </button>
+          
+          <button
+            class="btn btn-secondary"
+            style="margin-left: 12px;"
+            @click="emit('scrollToCenter')"
+          >
+            回到画布中心
+          </button>
+          
+          <button 
+            class="btn btn-secondary"
+            @click="emit('exitFullscreen')"
+            style="margin-left: 12px;"
+          >
+            退出全屏
+          </button>
+        </div>
+      </Transition>
     </div>
   </div>
 </template>
@@ -134,6 +144,21 @@ const handleChangeProject = (e: Event) => {
   font-weight: 500;
   margin: 0;
   color: #fff;
+}
+
+/* 标题切换动画：先隐藏再虚化淡入，共 0.5s */
+.title-switch-enter-active {
+  transition: opacity 0.35s ease, filter 0.35s ease;
+}
+.title-switch-leave-active {
+  transition: opacity 0.15s ease;
+}
+.title-switch-enter-from {
+  opacity: 0;
+  filter: blur(6px);
+}
+.title-switch-leave-to {
+  opacity: 0;
 }
 
 .project-select {
@@ -191,11 +216,15 @@ const handleChangeProject = (e: Event) => {
 }
 
 .btn {
-  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 18px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
+  line-height: 1.2;
   transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
   font-weight: 500;
 }

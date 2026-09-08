@@ -29,16 +29,44 @@ let chartInstance: Chart | null = null
 let resizeObserver: ResizeObserver | null = null
 let animTimeout: ReturnType<typeof setTimeout> | null = null
 
+const hasEverReceivedData = ref(false)
+
+const isValidNumber = (v: any): v is number => typeof v === 'number' && !isNaN(v)
+
 const displayData = computed(() => {
-  return props.data.slice(-(props.config.maxDataPoints || 10))
+  if (props.data.length > 0) {
+    return props.data.filter(d => isValidNumber(d.value)).slice(-(props.config.maxDataPoints || 10))
+  }
+  if (!hasEverReceivedData.value) {
+    const now = Date.now()
+    return [
+      { timestamp: now - 9000, value: 5, themeId: '' },
+      { timestamp: now - 8000, value: 8, themeId: '' },
+      { timestamp: now - 7000, value: 6, themeId: '' },
+      { timestamp: now - 6000, value: 10, themeId: '' },
+      { timestamp: now - 5000, value: 7, themeId: '' },
+      { timestamp: now - 4000, value: 12, themeId: '' },
+      { timestamp: now - 3000, value: 9, themeId: '' },
+      { timestamp: now - 2000, value: 14, themeId: '' },
+      { timestamp: now - 1000, value: 11, themeId: '' },
+      { timestamp: now, value: 15, themeId: '' },
+    ]
+  }
+  return []
 })
 
 const currentValue = computed(() => {
   if (displayData.value.length > 0) {
     return displayData.value[displayData.value.length - 1].value
   }
-  return '--'
+  return hasEverReceivedData.value ? '' : '--'
 })
+
+watch(() => props.data, (newData) => {
+  if (newData && newData.length > 0) {
+    hasEverReceivedData.value = true
+  }
+}, { deep: true, immediate: true })
 
 const createChart = () => {
   if (!chartCanvas.value) return
@@ -53,7 +81,8 @@ const createChart = () => {
   const lineColor = props.config.color || '#5c9ce6'
   const data = displayData.value
   
-  const gradient = ctx.createLinearGradient(0, 0, 0, chartCanvas.value.height)
+  const containerHeight = chartCanvas.value.parentElement?.clientHeight || chartCanvas.value.clientHeight || 200
+  const gradient = ctx.createLinearGradient(0, 0, 0, containerHeight)
   gradient.addColorStop(0, lineColor + '40')
   gradient.addColorStop(1, lineColor + '05')
   
@@ -62,9 +91,11 @@ const createChart = () => {
     data: data.map(v => v.value),
     borderColor: lineColor,
     backgroundColor: gradient,
+    pointBackgroundColor: lineColor,
+    pointBorderColor: lineColor,
     borderWidth: 2,
-    fill: true,
-    tension: 0.4,
+    fill: 'origin',
+    tension: 0.3,
     pointRadius: 4,
     pointHoverRadius: 6
   }]
@@ -138,10 +169,34 @@ const updateChart = () => {
     animTimeout = null
   }
   
+  // 始终更新颜色，即使数据未变化
+  const lineColor = props.config.color || '#5c9ce6'
+  const ds = chartInstance.data.datasets[0]
+  if (ds) {
+    ds.borderColor = lineColor
+    ;(ds as any).pointBackgroundColor = lineColor
+    ;(ds as any).pointBorderColor = lineColor
+    if (chartCanvas.value) {
+      const ctx = chartCanvas.value.getContext('2d')
+      if (ctx) {
+        const containerHeight = chartCanvas.value.parentElement?.clientHeight || chartCanvas.value.clientHeight || 200
+        const gradient = ctx.createLinearGradient(0, 0, 0, containerHeight)
+        gradient.addColorStop(0, lineColor + '40')
+        gradient.addColorStop(1, lineColor + '05')
+        ds.backgroundColor = gradient
+      }
+    }
+    const meta = chartInstance.getDatasetMeta(0)
+    if (meta && meta.data) {
+      meta.data.forEach((point: any) => {
+        point.options.backgroundColor = lineColor
+        point.options.borderColor = lineColor
+      })
+    }
+  }
+  
   if (data.length === 0) {
-    // 清空图表数据
-    chartInstance.data.labels!.length = 0
-    chartInstance.data.datasets[0].data.length = 0
+    // 无新数据时保留历史数据，仅更新颜色
     chartInstance.update('none')
     return
   }
@@ -152,72 +207,57 @@ const updateChart = () => {
   })
   
   const newValues = data.map(v => v.value)
-  const ds = chartInstance.data.datasets[0]
   if (!ds) return
+  
+  // 数据未变化则跳过重绘
+  const curData = ds.data as number[]
+  if (curData.length === newValues.length && curData.every((v, i) => v === newValues[i])) {
+    chartInstance.update('none')
+    return
+  }
   
   // 更新 labels
   chartInstance.data.labels!.length = 0
   chartInstance.data.labels!.push(...labels)
   
-  const maxLen = props.config.maxDataPoints || 10
-  const isFull = data.length >= maxLen
-  
-  if (isFull) {
-    // 满容量：两步更新（闪现 + 移位）
-    // Step 1: 新数据先闪现到最后一列（无动画）
-    ds.data[newValues.length - 1] = newValues[newValues.length - 1]
-    chartInstance.update('none')
-    
-    // Step 2: 旧数据集体往左移（带动画）
-    animTimeout = setTimeout(() => {
-      if (!chartInstance) return
-      const ds2 = chartInstance.data.datasets[0]
-      if (!ds2) return
-      for (let i = 0; i < newValues.length - 1; i++) {
-        ds2.data[i] = newValues[i]
-      }
-      chartInstance.update()
-      animTimeout = null
-    }, 80)
-  } else {
-    // 未满容量：保持动画效果，同时避免线段扭曲
-    if (newValues.length === 1) {
-      // 第一个数据点，直接动画即可，没有前一个点可扭曲
-      ds.data[0] = newValues[0]
-      chartInstance.update()
-    } else {
-      // Step 1: 所有数据到位，但最后一个数据点设为前一个值（过渡态）
-      for (let i = 0; i < newValues.length; i++) {
-        ds.data[i] = newValues[i]
-      }
-      const prevValue = newValues[newValues.length - 2]
-      ds.data[newValues.length - 1] = prevValue
-      chartInstance.update('none')
-      
-      // Step 2: 最后一个数据点从过渡态动画到正确值，线段自然衔接
-      animTimeout = setTimeout(() => {
-        if (!chartInstance) return
-        const ds2 = chartInstance.data.datasets[0]
-        if (!ds2) return
-        for (let i = 0; i < newValues.length; i++) {
-          ds2.data[i] = newValues[i]
-        }
-        chartInstance.update()
-        animTimeout = null
-      }, 80)
-    }
+  // 统一使用简单动画：直接赋值，新元素自然动画进入
+  for (let i = 0; i < newValues.length; i++) {
+    ds.data[i] = newValues[i]
   }
+  ds.data.length = newValues.length
+  chartInstance.update()
 }
 
 const handleResize = () => {
   if (chartInstance) {
     chartInstance.resize()
+    // 更新渐变以适配新尺寸
+    if (chartCanvas.value) {
+      const ctx = chartCanvas.value.getContext('2d')
+      if (ctx) {
+        const lineColor = props.config.color || '#5c9ce6'
+        const containerHeight = chartCanvas.value.parentElement?.clientHeight || chartCanvas.value.clientHeight || 200
+        const gradient = ctx.createLinearGradient(0, 0, 0, containerHeight)
+        gradient.addColorStop(0, lineColor + '40')
+        gradient.addColorStop(1, lineColor + '05')
+        const ds = chartInstance.data.datasets[0]
+        ds.backgroundColor = gradient
+        ds.borderColor = lineColor
+        ;(ds as any).pointBackgroundColor = lineColor
+        ;(ds as any).pointBorderColor = lineColor
+        chartInstance.update('none')
+      }
+    }
   }
 }
 
 watch(() => props.data, () => {
   updateChart()
 }, { deep: true, immediate: true })
+
+watch(() => props.config.color, () => {
+  updateChart()
+})
 
 onMounted(() => {
   nextTick(() => {
@@ -245,6 +285,7 @@ onUnmounted(() => {
   <div class="mini-area-container">
     <div class="mini-area-header">
       <span class="label-text">{{ config.labelText || '数据' }}</span>
+      <span v-if="!hasEverReceivedData && displayData.length > 0" class="demo-label">此为演示状态并非已有数据</span>
       <div class="current-value">
         <span class="value">{{ typeof currentValue === 'number' ? currentValue.toFixed(1) : currentValue }}</span>
         <span class="unit">{{ config.unit || '' }}</span>
@@ -275,6 +316,13 @@ onUnmounted(() => {
   font-size: 13px;
   color: #666;
   font-weight: 500;
+}
+
+.demo-label {
+  font-size: 11px;
+  color: #e67e22;
+  font-style: italic;
+  white-space: nowrap;
 }
 
 .current-value {

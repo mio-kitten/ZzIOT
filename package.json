@@ -1,18 +1,19 @@
 {
   "name": "zziot",
-  "version": "2.4.1-Y",
+  "version": "3.0.26.908",
   "description": "ZzIOT 物联网显示面板",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --config 其他文件/vite.config.ts",
     "server": "node server/index.js",
     "start": "concurrently \"npm run dev\" \"npm run server\"",
-    "build": "vue-tsc && vite build",
-    "preview": "vite preview"
+    "build": "vue-tsc && vite build --config 其他文件/vite.config.ts",
+    "preview": "vite preview --config 其他文件/vite.config.ts"
   },
   "dependencies": {
     "aedes": "^1.1.1",
     "chart.js": "^4.4.1",
     "express": "^4.21.0",
+    "jszip": "^3.10.1",
     "mqtt": "^5.3.5",
     "vue": "^3.3.13",
     "vue-chartjs": "^5.3.0"

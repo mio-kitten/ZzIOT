@@ -14,7 +14,8 @@ const basicComponents = [
   { id: 'input', name: '输入框', icon: '▭', desc: '点击输入框输入内容，按发送键发送到主题' },
   { id: 'radio', name: '单选框', icon: '◎', desc: '选择选项并发送对应值到主题' },
   { id: 'text', name: '单行文字', icon: 'T', desc: '显示单个主题接收到的消息' },
-  { id: 'textarea', name: '多行文本', icon: 'TT', desc: '读取多个主题，每行显示一个主题的数据' }
+  { id: 'textarea', name: '多行文本', icon: 'TT', desc: '读取多个主题，每行显示一个主题的数据' },
+  { id: 'light', name: '灯', icon: '☀', desc: '根据接收到的消息显示不同颜色，支持多个颜色匹配规则' }
 ]
 
 const displayComponents = [
@@ -24,7 +25,8 @@ const displayComponents = [
 ]
 
 const decorativeComponents = [
-  { id: 'decorativeText', name: '文本', icon: 'T', desc: '自定义显示文本内容，支持多种隐藏模式' }
+  { id: 'decorativeText', name: '文本', icon: 'T', desc: '自定义显示文本内容，支持多种隐藏模式' },
+  { id: 'image', name: '图片', icon: '▣', desc: '导入并显示图片，支持 JPG/PNG/GIF/SVG/WebP' }
 ]
 
 const handleDragStart = (e: DragEvent, type: string) => {

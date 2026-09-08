@@ -4,8 +4,9 @@
  * 数据持久化到浏览器 localStorage，支持导出/导入 JSON 文件实现跨设备迁移
  */
 import { ref, computed, reactive } from 'vue';
-import type { Project, Widget, PlatformConfig, LineChartWidgetConfig } from '@/types';
+import type { Project, Widget, PlatformConfig } from '@/types';
 import { getWidgetMinSize } from '@/utils/widgetMinSize';
+import JSZip from 'jszip';
 
 const projects = ref<Project[]>([]);
 const currentProjectId = ref<string | null>(null);
@@ -40,13 +41,26 @@ const closeImportDialog = (callback?: () => void) => {
   }, 200)
 }
 
-/** 读取单个文件内容为项目数据 */
+/** 读取单个 ZIPD 文件内容为项目数据 */
 const readProjectFile = (file: File): Promise<{ fileName: string; projects: Project[]; error?: string }> => {
   return new Promise((resolve) => {
+    if (!file.name.toLowerCase().endsWith('.zipd')) {
+      resolve({ fileName: file.name, projects: [], error: '请导入指定.zipd文件' })
+      return
+    }
+
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
-        const rawData = JSON.parse(e.target?.result as string)
+        const buffer = e.target?.result as ArrayBuffer
+        const zip = await JSZip.loadAsync(buffer)
+        const projectFile = zip.file('project.json')
+        if (!projectFile) {
+          resolve({ fileName: file.name, projects: [], error: 'ZIPD 文件中未找到 project.json' })
+          return
+        }
+        const jsonStr = await projectFile.async('string')
+        const rawData = JSON.parse(jsonStr)
         const data = Array.isArray(rawData) ? rawData : [rawData]
         if (data.length === 0 || !data[0]?.id || !data[0]?.name) {
           resolve({ fileName: file.name, projects: [], error: '文件格式不正确' })
@@ -54,13 +68,13 @@ const readProjectFile = (file: File): Promise<{ fileName: string; projects: Proj
         }
         resolve({ fileName: file.name, projects: data })
       } catch {
-        resolve({ fileName: file.name, projects: [], error: '无效的 JSON' })
+        resolve({ fileName: file.name, projects: [], error: '无效的 ZIPD 文件' })
       }
     }
     reader.onerror = () => {
       resolve({ fileName: file.name, projects: [], error: '无法读取文件' })
     }
-    reader.readAsText(file)
+    reader.readAsArrayBuffer(file)
   })
 }
 
@@ -255,7 +269,7 @@ export function useProject() {
     if (project) {
       project.widgets.push(widget);
       project.updatedAt = new Date().toISOString();
-      saveProjects();
+      saveProjectsDebounced();
     }
   };
 
@@ -308,118 +322,154 @@ export function useProject() {
   };
 
   /**
-   * 导出单个项目为 JSON 文件（浏览器下载）
+   * 导出单个项目为 ZIPD 文件（浏览器下载）
+   * ZIPD 格式：ZIP 压缩包，内含 project.json + images/ 目录
    * @param project 要导出的项目
    */
   const exportProject = async (project: Project): Promise<boolean> => {
-    const data = JSON.stringify([project], null, 2);
-    const filename = `${project.name}.json`;
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    return true;
-  };
+    const zip = new JSZip()
+    zip.file('project.json', JSON.stringify(project, null, 2))
+    const imagesFolder = zip.folder('images')
+    const imageWidgets = project.widgets.filter(w => {
+      if (w.type === 'image') return true
+      if (w.type === 'button') {
+        const cfg = w.config as Record<string, unknown>
+        return cfg.displayMode === 'image' && cfg.imageData && cfg.imageId
+      }
+      return false
+    })
+    for (const widget of imageWidgets) {
+      const config = widget.config as Record<string, unknown>
+      if (config.imageData && config.imageId) {
+        const base64 = (config.imageData as string).split(',')[1] || (config.imageData as string)
+        imagesFolder!.file(`${config.imageId}.png`, base64, { base64: true })
+      }
+    }
+    const blob = await zip.generateAsync({ type: 'blob' })
+    const filename = `${project.name}.zipd`
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    return true
+  }
 
   /**
-   * 导出多个项目，每个项目单独导出为一个 JSON 文件（浏览器下载）
+   * 导出多个项目，每个项目单独导出为一个 ZIPD 文件（浏览器下载）
    * @param projects 要导出的项目列表
    */
   const exportProjects = async (projects: Project[]): Promise<boolean> => {
-    if (projects.length === 0) return false;
+    if (projects.length === 0) return false
     for (const project of projects) {
-      const data = JSON.stringify(project, null, 2);
-      const filename = `${project.name}.json`;
-      const blob = new Blob([data], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      await exportProject(project)
       if (projects.length > 1) {
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 300))
       }
     }
-    return true;
+    return true
   };
 
   /**
-   * 从 JSON 文件导入项目（合并到现有项目列表）
-   * 支持单个项目对象或项目数组
+   * 从 ZIPD 文件导入项目（合并到现有项目列表）
+   * 仅接受 .zipd 格式
    */
   const importProjects = (file: File): Promise<boolean> => {
     return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const rawData = JSON.parse(e.target?.result as string);
-          // 支持单个项目对象或项目数组
-          const data = Array.isArray(rawData) ? rawData : [rawData];
-          if (data.length === 0 || !data[0]?.id || !data[0]?.name) {
-            importDialog.type = 'alert';
-            importDialog.message = '导入失败';
-            importDialog.detail = '文件格式不正确，需要有效的项目数据';
-            importDialog.show = true;
-            importDialog.resolve = (_confirmed: boolean) => {
-              closeImportDialog(() => resolve(false));
-            };
-            return;
-          }
-
-          const existingNameMap = new Map(projects.value.map(p => [p.name.toLowerCase(), p]));
-          const duplicateNames: string[] = [];
-          data.forEach((p: Project) => {
-            const existing = existingNameMap.get(p.name.toLowerCase());
-            if (existing) {
-              duplicateNames.push(p.name);
-            }
-          });
-
-          if (duplicateNames.length > 0) {
-            importDialog.type = 'confirm';
-            importDialog.message = '项目名称重复';
-            importDialog.detail = `以下 ${duplicateNames.length} 个项目名称已存在，是否覆盖？\n${duplicateNames.join('、')}`;
-            importDialog.show = true;
-            importDialog.resolve = (confirmed: boolean) => {
-              if (confirmed) {
-                closeImportDialog(() => performImport(data, resolve, true));
-              } else {
-                closeImportDialog(() => resolve(false));
-              }
-            };
-            return;
-          }
-
-          performImport(data, resolve, false);
-        } catch {
-          importDialog.type = 'alert';
-          importDialog.message = '导入失败';
-          importDialog.detail = '文件内容不是有效的 JSON';
-          importDialog.show = true;
-          importDialog.resolve = (_confirmed: boolean) => {
-            closeImportDialog(() => resolve(false));
-          };
-        }
-      };
-      reader.onerror = () => {
-        importDialog.type = 'alert';
-        importDialog.message = '导入失败';
-        importDialog.detail = '无法读取文件';
-        importDialog.show = true;
+      if (!file.name.toLowerCase().endsWith('.zipd')) {
+        importDialog.type = 'alert'
+        importDialog.message = '导入失败'
+        importDialog.detail = '请导入指定.zipd文件'
+        importDialog.show = true
         importDialog.resolve = (_confirmed: boolean) => {
-          closeImportDialog(() => resolve(false));
-        };
-      };
-      reader.readAsText(file);
-    });
+          closeImportDialog(() => resolve(false))
+        }
+        return
+      }
+
+      const handleData = (data: Project[]) => {
+        if (data.length === 0 || !data[0]?.id || !data[0]?.name) {
+          importDialog.type = 'alert'
+          importDialog.message = '导入失败'
+          importDialog.detail = '文件格式不正确，需要有效的项目数据'
+          importDialog.show = true
+          importDialog.resolve = (_confirmed: boolean) => {
+            closeImportDialog(() => resolve(false))
+          }
+          return
+        }
+
+        const existingNameMap = new Map(projects.value.map(p => [p.name.toLowerCase(), p]))
+        const duplicateNames: string[] = []
+        data.forEach((p: Project) => {
+          const existing = existingNameMap.get(p.name.toLowerCase())
+          if (existing) {
+            duplicateNames.push(p.name)
+          }
+        })
+
+        if (duplicateNames.length > 0) {
+          importDialog.type = 'confirm'
+          importDialog.message = '项目名称重复'
+          importDialog.detail = `以下 ${duplicateNames.length} 个项目名称已存在，是否覆盖？\n${duplicateNames.join('、')}`
+          importDialog.show = true
+          importDialog.resolve = (confirmed: boolean) => {
+            if (confirmed) {
+              closeImportDialog(() => performImport(data, resolve, true))
+            } else {
+              closeImportDialog(() => resolve(false))
+            }
+          }
+          return
+        }
+
+        performImport(data, resolve, false)
+      }
+
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        try {
+          const buffer = e.target?.result as ArrayBuffer
+          const zip = await JSZip.loadAsync(buffer)
+          const projectFile = zip.file('project.json')
+          if (!projectFile) {
+            importDialog.type = 'alert'
+            importDialog.message = '导入失败'
+            importDialog.detail = 'ZIPD 文件中未找到 project.json'
+            importDialog.show = true
+            importDialog.resolve = (_confirmed: boolean) => {
+              closeImportDialog(() => resolve(false))
+            }
+            return
+          }
+          const jsonStr = await projectFile.async('string')
+          const rawData = JSON.parse(jsonStr)
+          const data = Array.isArray(rawData) ? rawData : [rawData]
+          handleData(data)
+        } catch {
+          importDialog.type = 'alert'
+          importDialog.message = '导入失败'
+          importDialog.detail = '无效的 ZIPD 文件'
+          importDialog.show = true
+          importDialog.resolve = (_confirmed: boolean) => {
+            closeImportDialog(() => resolve(false))
+          }
+        }
+      }
+      reader.onerror = () => {
+        importDialog.type = 'alert'
+        importDialog.message = '导入失败'
+        importDialog.detail = '无法读取文件'
+        importDialog.show = true
+        importDialog.resolve = (_confirmed: boolean) => {
+          closeImportDialog(() => resolve(false))
+        }
+      }
+      reader.readAsArrayBuffer(file)
+    })
   };
 
   const performImport = (data: Project[], resolve: (value: boolean) => void, overwrite: boolean) => {
@@ -595,7 +645,7 @@ export function useProject() {
   }
 
   const createLineChartWidget = (x: number, y: number): Widget => {
-    const config: LineChartWidgetConfig = {
+    const config = {
       id: `widget-${Date.now()}`,
       title: '折线图',
       width: 420,
@@ -664,7 +714,11 @@ export function useProject() {
       y,
       buttonText: '点击',
       sendContent: '1',
-      topic: ''
+      topic: '',
+      displayMode: 'button' as 'button' | 'image',
+      imageData: null as string | null,
+      imageId: null as string | null,
+      imageName: ''
     };
     return {
       id: config.id,
@@ -719,7 +773,7 @@ export function useProject() {
       id: `widget-${Date.now()}`,
       title: '单行文字',
       width: 200,
-      height: 180,
+      height: 100,
       x,
       y,
       textColor: '#333333',
@@ -786,8 +840,8 @@ export function useProject() {
       topic: '',
       orientation: 'horizontal' as 'horizontal' | 'vertical',
       options: [
-        { label: '选项1', value: '1' },
-        { label: '选项2', value: '2' }
+        { label: '选项1', value: '' },
+        { label: '选项2', value: '' }
       ]
     };
     return {
@@ -818,6 +872,45 @@ export function useProject() {
     };
   };
 
+  const createImageWidget = (x: number, y: number): Widget => {
+    const config = {
+      id: `widget-${Date.now()}`,
+      title: '图片',
+      width: 200,
+      height: 200,
+      x,
+      y,
+      imageData: null as string | null,
+      imageId: null as string | null,
+      imageName: ''
+    };
+    return {
+      id: config.id,
+      type: 'image',
+      config
+    };
+  };
+
+  const createLightWidget = (x: number, y: number): Widget => {
+    const config = {
+      id: `widget-${Date.now()}`,
+      title: '灯',
+      width: 100,
+      height: 100,
+      x,
+      y,
+      topic: '',
+      colors: [
+        { id: `lc-${Date.now()}`, matchValue: '', color: '#5c9ce6' }
+      ]
+    };
+    return {
+      id: config.id,
+      type: 'light',
+      config
+    };
+  };
+
   const createWidget = (type: string, x: number, y: number): Widget => {
     switch (type) {
       case 'lineChart': return createLineChartWidget(x, y);
@@ -831,6 +924,8 @@ export function useProject() {
       case 'miniArea': return createMiniAreaWidget(x, y);
       case 'radio': return createRadioWidget(x, y);
       case 'decorativeText': return createDecorativeTextWidget(x, y);
+      case 'image': return createImageWidget(x, y);
+      case 'light': return createLightWidget(x, y);
       default: return createLineChartWidget(x, y);
     }
   };
@@ -868,6 +963,8 @@ export function useProject() {
     createTextareaWidget,
     createMiniAreaWidget,
     createRadioWidget,
-    createDecorativeTextWidget
+    createDecorativeTextWidget,
+    createImageWidget,
+    createLightWidget
   };
 }

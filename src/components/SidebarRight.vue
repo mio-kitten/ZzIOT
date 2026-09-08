@@ -1,4 +1,6 @@
-/**
+ 
+ 
+ /**
  * 右侧属性配置面板
  * 选中组件后显示其属性配置项：尺寸、主题、MQTT主题、数据源等
  */
@@ -19,6 +21,9 @@ const emit = defineEmits<{
   remove: [
   ];
   clearData: [
+  ];
+  sendMessage: [
+    topic: string, message: string
   ];
 }>();
 const inputValue = (event: Event) => {
@@ -82,6 +87,11 @@ const buttonConfig = computed(() => {
     height: number;
     buttonText: string;
     sendContent: string;
+    topic: string;
+    displayMode: 'button' | 'image';
+    imageData: string | null;
+    imageId: string | null;
+    imageName: string;
   };
 });
 
@@ -130,14 +140,36 @@ const handleUpdateTitle = (value: string) => {
   emit('update', { title: value });
 };
 
+const CANVAS_SIZE = 3000
+
 const handleUpdateWidth = (value: number) => {
   const min = props.widget ? getWidgetMinSize(props.widget.type).width : 100
-  emit('update', { width: Math.max(min, value) });
+  const cfg = props.widget?.config as Record<string, unknown> | undefined
+  const x = (cfg?.x as number) ?? 0
+  const max = CANVAS_SIZE - x
+  const val = Math.max(min, Math.min(value, max))
+  if (props.widget?.type === 'light') {
+    const y = (cfg?.y as number) ?? 0
+    const maxH = CANVAS_SIZE - y
+    emit('update', { width: val, height: Math.max(min, Math.min(val, maxH)) })
+  } else {
+    emit('update', { width: val })
+  }
 };
 
 const handleUpdateHeight = (value: number) => {
   const min = props.widget ? getWidgetMinSize(props.widget.type).height : 60
-  emit('update', { height: Math.max(min, value) });
+  const cfg = props.widget?.config as Record<string, unknown> | undefined
+  const y = (cfg?.y as number) ?? 0
+  const max = CANVAS_SIZE - y
+  const val = Math.max(min, Math.min(value, max))
+  if (props.widget?.type === 'light') {
+    const x = (cfg?.x as number) ?? 0
+    const maxW = CANVAS_SIZE - x
+    emit('update', { width: Math.max(min, Math.min(val, maxW)), height: val })
+  } else {
+    emit('update', { height: val })
+  }
 };
 
 const handleUpdateMaxDataPoints = (value: number) => {
@@ -318,6 +350,19 @@ const decorativeTextConfig = computed(() => {
   };
 });
 
+const imageConfig = computed(() => {
+  if (!props.widget || props.widget.type !== 'image')
+    return null;
+  return props.widget.config as {
+    title: string;
+    width: number;
+    height: number;
+    imageData: string | null;
+    imageId: string | null;
+    imageName: string;
+  };
+});
+
 const handleUpdateContent = (value: string) => {
   emit('update', { content: value });
 };
@@ -350,7 +395,7 @@ const handleUpdateRadioOption = (index: number, field: 'label' | 'value', value:
 
 const handleAddRadioOption = () => {
   const options = [...(radioConfig.value?.options || [])];
-  options.push({ label: `选项${options.length + 1}`, value: String(options.length + 1) });
+  options.push({ label: `选项${options.length + 1}`, value: '' });
   emit('update', { options });
 };
 
@@ -359,6 +404,139 @@ const handleRemoveRadioOption = (index: number) => {
   if (options.length <= 1) return;
   const newOptions = options.filter((_, i) => i !== index);
   emit('update', { options: newOptions });
+};
+
+const imageFileInput = ref<HTMLInputElement | null>(null)
+
+const handleImageUpload = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp']
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp']
+
+  const isAllowed = allowedTypes.includes(file.type) ||
+    (!file.type && allowedExtensions.some(ext => file.name.toLowerCase().endsWith(ext)))
+
+  if (!isAllowed) {
+    alert('不支持的图片格式，请选择 JPG、PNG、GIF、SVG 或 WebP')
+    input.value = ''
+    return
+  }
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const imageData = e.target?.result as string
+    const imageId = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    emit('update', {
+      imageData,
+      imageId,
+      imageName: file.name
+    })
+  }
+  reader.readAsDataURL(file)
+}
+
+const handleClearImage = () => {
+  emit('update', {
+    imageData: null,
+    imageId: null,
+    imageName: ''
+  })
+}
+
+const handleUpdateButtonDisplayMode = (value: string) => {
+  emit('update', { displayMode: value as 'button' | 'image' })
+}
+
+const buttonImageFileInput = ref<HTMLInputElement | null>(null)
+
+const handleButtonImageUpload = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp']
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp']
+
+  const isAllowed = allowedTypes.includes(file.type) ||
+    (!file.type && allowedExtensions.some(ext => file.name.toLowerCase().endsWith(ext)))
+
+  if (!isAllowed) {
+    alert('不支持的图片格式，请选择 JPG、PNG、GIF、SVG 或 WebP')
+    input.value = ''
+    return
+  }
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const imageData = e.target?.result as string
+    const imageId = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    emit('update', {
+      imageData,
+      imageId,
+      imageName: file.name
+    })
+  }
+  reader.readAsDataURL(file)
+}
+
+const handleButtonClearImage = () => {
+  emit('update', {
+    imageData: null,
+    imageId: null,
+    imageName: ''
+  })
+}
+
+const lightConfig = computed(() => {
+  if (!props.widget || props.widget.type !== 'light')
+    return null;
+  return props.widget.config as {
+    title: string;
+    width: number;
+    height: number;
+    topic: string;
+    forceOff?: boolean;
+    colors: { id: string; matchValue: string; color: string }[];
+  };
+});
+
+const handleUpdateLightColor = (index: number, updates: Record<string, string>) => {
+  if (!lightConfig.value) return;
+  const colors = [...lightConfig.value.colors];
+  colors[index] = { ...colors[index], ...updates };
+  emit('update', { colors });
+};
+
+const handleAddLightColor = () => {
+  if (!lightConfig.value) return;
+  const count = lightConfig.value.colors.length;
+  const availableColor = colors[count % colors.length];
+  const newColor = {
+    id: `lc-${Date.now()}`,
+    matchValue: '',
+    color: availableColor
+  };
+  const newColors = [...lightConfig.value.colors, newColor];
+  emit('update', { colors: newColors });
+};
+
+const handleRemoveLightColor = (index: number) => {
+  if (!lightConfig.value) return;
+  if (lightConfig.value.colors.length <= 1) return;
+  const newColors = lightConfig.value.colors.filter((_, i) => i !== index);
+  emit('update', { colors: newColors });
+};
+
+const handleToggleForceOff = () => {
+  const topic = props.widget?.config?.topic as string | undefined
+  if (topic) {
+    emit('sendMessage', topic, 'off')
+  } else {
+    emit('clearData')
+  }
 };
 </script>
 
@@ -370,8 +548,7 @@ const handleRemoveRadioOption = (index: number) => {
     
     <div v-if="widget" class="panel-content">
       <div class="config-section">
-        <div class="section-header">基本属性</div>
-        
+
         <div class="config-item">
           <label>组件标题</label>
           <input
@@ -412,7 +589,7 @@ const handleRemoveRadioOption = (index: number) => {
           </div>
         </div>
         
-        <div v-if="widget.type !== 'lineChart' && widget.type !== 'textarea' && widget.type !== 'decorativeText'" class="config-item">
+        <div v-if="widget.type !== 'lineChart' && widget.type !== 'textarea' && widget.type !== 'decorativeText' && widget.type !== 'image' && widget.type !== 'button' && widget.type !== 'switch'" class="config-item">
           <label>Topic</label>
           <input
             :value="getTopic(widget.config)"
@@ -443,7 +620,7 @@ const handleRemoveRadioOption = (index: number) => {
           />
         </div>
         
-        <div class="config-item checkbox-item" v-if="widget.type !== 'decorativeText'">
+        <div class="config-item checkbox-item" v-if="widget.type !== 'decorativeText' && widget.type !== 'light'">
           <label>隐藏底色</label>
           <input 
             type="checkbox" 
@@ -595,6 +772,170 @@ const handleRemoveRadioOption = (index: number) => {
         </div>
       </template>
 
+      <template v-if="widget.type === 'light'">
+        <div class="config-section">
+          <div class="section-header">外观</div>
+          
+          <div class="config-item">
+            <label>组件宽度</label>
+            <input
+              :value="lightConfig?.width"
+              @input="handleUpdateWidth(Number(inputValue($event)))"
+              type="number"
+              class="config-input"
+            />
+          </div>
+          
+          <div class="config-item">
+            <label>组件高度</label>
+            <input
+              :value="lightConfig?.height"
+              @input="handleUpdateHeight(Number(inputValue($event)))"
+              type="number"
+              class="config-input"
+            />
+          </div>
+        </div>
+        
+        <div class="config-section">
+          <div class="section-header">颜色配置</div>
+          
+          <div class="theme-list">
+            <div
+              v-for="(colorItem, index) in lightConfig?.colors"
+              :key="colorItem.id"
+              class="theme-item"
+            >
+              <div class="theme-row">
+                <div class="color-picker-row">
+                  <label class="theme-color-pick text-color-pick">
+                    <input
+                      type="color"
+                      :value="colorItem.color"
+                      @input="handleUpdateLightColor(index, { color: inputValue($event) })"
+                    />
+                    <div class="theme-color" :style="{ backgroundColor: colorItem.color }"></div>
+                  </label>
+                </div>
+                <input
+                  :value="colorItem.matchValue"
+                  @input="handleUpdateLightColor(index, { matchValue: inputValue($event) })"
+                  type="text"
+                  placeholder="匹配值"
+                  class="theme-input"
+                />
+                <button
+                  v-if="lightConfig?.colors && lightConfig.colors.length > 1"
+                  class="remove-theme-btn"
+                  @click="handleRemoveLightColor(index)"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2">
+                    <path d="M18 6L6 18"/>
+                    <path d="M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <button class="add-theme-btn" @click="handleAddLightColor">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1e88e5" stroke-width="2">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+            <span>添加颜色</span>
+          </button>
+        </div>
+        
+        <div class="info-section">
+          <div class="info-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1e88e5" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 16v-4M12 8h.01"/>
+            </svg>
+            <span>使用说明</span>
+          </div>
+          <div class="info-content">
+            <p>1. 配置下方 Topic 用于接收消息</p>
+            <p>2. 添加颜色并设置匹配值和颜色</p>
+            <p>3. 当接收到匹配值时，灯显示对应颜色</p>
+            <p>4. 如果接收到 <code>off</code>/<code>OFF</code>，组件图像会变为关闭状态</p>
+            <p>5. 点击"关灯"按钮，如果配置了Topic，会发送关灯数据<code>off</code>；如果没有配置，只会改变图像</p>
+          </div>
+        </div>
+      </template>
+
+      <template v-if="widget.type === 'image'">
+        <div class="config-section">
+          <div class="section-header">外观</div>
+          
+          <div class="config-item">
+            <label>组件宽度</label>
+            <input
+              :value="imageConfig?.width"
+              @input="handleUpdateWidth(Number(inputValue($event)))"
+              type="number"
+              class="config-input"
+            />
+          </div>
+          
+          <div class="config-item">
+            <label>组件高度</label>
+            <input
+              :value="imageConfig?.height"
+              @input="handleUpdateHeight(Number(inputValue($event)))"
+              type="number"
+              class="config-input"
+            />
+          </div>
+        </div>
+        
+        <div class="config-section">
+          <div class="section-header">图片导入</div>
+          
+          <div class="config-item">
+            <div class="image-upload-row">
+              <button class="image-upload-btn" @click="imageFileInput?.click()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                </svg>
+                选择图片
+              </button>
+              <input
+                ref="imageFileInput"
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/svg+xml,image/webp,.jpg,.jpeg,.png,.gif,.svg,.webp"
+                class="image-file-input-hidden"
+                @change="handleImageUpload"
+              />
+              <span v-if="imageConfig?.imageName" class="image-name">{{ imageConfig?.imageName }}</span>
+              <span v-else class="image-name-placeholder">未选择图片</span>
+            </div>
+          </div>
+
+          <div class="image-format-hint">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 16v-4M12 8h.01"/>
+            </svg>
+            <span>支持导入的格式：JPG、PNG、GIF动图、SVG、WebP</span>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1e88e5" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 16v-4M12 8h.01"/>
+            </svg>
+            <span>使用说明</span>
+          </div>
+          <div class="info-content">
+            <p>1. 点击上传按钮导入本地图片</p>
+            <p>2. 图片将以原始比例自适应显示</p>
+          </div>
+        </div>
+      </template>
+
       <template v-if="widget.type === 'lineChart'">
         <div class="config-section">
           <div class="section-header">外观</div>
@@ -677,14 +1018,16 @@ const handleRemoveRadioOption = (index: number) => {
               class="theme-item"
             >
               <div class="theme-row">
-                <label class="theme-color-pick">
-                  <input
-                    type="color"
-                    :value="theme.color"
-                    @input="handleUpdateTheme(index, { color: inputValue($event) })"
-                  />
-                  <div class="theme-color" :style="{ backgroundColor: theme.color }"></div>
-                </label>
+                <div class="color-picker-row">
+                  <label class="theme-color-pick text-color-pick">
+                    <input
+                      type="color"
+                      :value="theme.color"
+                      @input="handleUpdateTheme(index, { color: inputValue($event) })"
+                    />
+                    <div class="theme-color" :style="{ backgroundColor: theme.color }"></div>
+                  </label>
+                </div>
                 <input
                   :value="theme.name"
                   @input="handleUpdateTheme(index, { name: inputValue($event) })"
@@ -999,6 +1342,46 @@ const handleRemoveRadioOption = (index: number) => {
 
       <template v-if="widget.type === 'button'">
         <div class="config-section">
+          <div class="section-header">显示模式</div>
+          
+          <div class="config-item">
+            <select
+              :value="buttonConfig?.displayMode"
+              @change="handleUpdateButtonDisplayMode(inputValue($event))"
+              class="config-input"
+            >
+              <option value="button">纯按钮模式</option>
+              <option value="image">图片按钮模式</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="config-section">
+          <div class="section-header">连接</div>
+          
+          <div class="config-item">
+            <label>Topic</label>
+            <input
+              :value="getTopic(widget.config)"
+              @input="emit('update', { topic: inputValue($event) })"
+              type="text"
+              class="config-input"
+              placeholder="请输入Topic名称"
+            />
+          </div>
+          
+          <div class="config-item">
+            <label>发送内容</label>
+            <input
+              :value="buttonConfig?.sendContent"
+              @input="handleUpdateSendContent(inputValue($event))"
+              type="text"
+              class="config-input"
+            />
+          </div>
+        </div>
+
+        <div class="config-section">
           <div class="section-header">外观</div>
           
           <div class="config-item">
@@ -1026,7 +1409,7 @@ const handleRemoveRadioOption = (index: number) => {
           </div>
         </div>
         
-        <div class="config-section">
+        <div class="config-section" v-if="buttonConfig?.displayMode !== 'image'">
           <div class="section-header">内容</div>
           
           <div class="config-item">
@@ -1038,19 +1421,41 @@ const handleRemoveRadioOption = (index: number) => {
               class="config-input"
             />
           </div>
+        </div>
+
+        <div class="config-section" v-if="buttonConfig?.displayMode === 'image'">
+          <div class="section-header">图片导入</div>
           
           <div class="config-item">
-            <label>发送内容</label>
-            <input
-              :value="buttonConfig?.sendContent"
-              @input="handleUpdateSendContent(inputValue($event))"
-              type="text"
-              class="config-input"
-            />
+            <div class="image-upload-row">
+              <button class="image-upload-btn" @click="buttonImageFileInput?.click()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                </svg>
+                选择图片
+              </button>
+              <input
+                ref="buttonImageFileInput"
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/svg+xml,image/webp,.jpg,.jpeg,.png,.gif,.svg,.webp"
+                class="image-file-input-hidden"
+                @change="handleButtonImageUpload"
+              />
+              <span v-if="buttonConfig?.imageName" class="image-name">{{ buttonConfig?.imageName }}</span>
+              <span v-else class="image-name-placeholder">未选择图片</span>
+            </div>
+          </div>
+
+          <div class="image-format-hint">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 16v-4M12 8h.01"/>
+            </svg>
+            <span>支持导入的格式：JPG、PNG、GIF动图、SVG、WebP</span>
           </div>
         </div>
         
-        <div class="info-section">
+        <div class="info-section" v-if="buttonConfig?.displayMode !== 'image'">
           <div class="info-header">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2">
               <circle cx="12" cy="12" r="10"/>
@@ -1121,6 +1526,17 @@ const handleRemoveRadioOption = (index: number) => {
         
         <div class="config-section">
           <div class="section-header">发送</div>
+
+          <div class="config-item">
+            <label>Topic</label>
+            <input
+              :value="getTopic(widget.config)"
+              @input="emit('update', { topic: inputValue($event) })"
+              type="text"
+              class="config-input"
+              placeholder="请输入Topic名称"
+            />
+          </div>
           
           <div class="config-item">
             <label>开启发送</label>
@@ -1330,13 +1746,12 @@ const handleRemoveRadioOption = (index: number) => {
           <div class="config-item">
             <label>组件高度</label>
             <input
-              :value="widget.config.height"
-              @input="emit('update', { height: Number(inputValue($event)) })"
+              :value="textConfig?.height"
+              @input="handleUpdateHeight(Number(inputValue($event)))"
               type="number"
               class="config-input"
             />
           </div>
-          
         </div>
 
         <div class="config-section">
@@ -1592,23 +2007,45 @@ const handleRemoveRadioOption = (index: number) => {
         </div>
       </template>
       
-      <div class="action-section">
+    <div class="action-section">
         <button
-          v-if="!['button', 'switch', 'input', 'radio', 'decorativeText'].includes(widget.type)"
+          v-if="!['button', 'switch', 'input', 'radio', 'decorativeText', 'image', 'light'].includes(widget.type)"
           class="clear-data-btn"
           @click="emit('clearData')"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
             <path d="M3 6h18M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2m3 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6h14"/>
             <path d="M10 11v6M14 11v6"/>
           </svg>
           <span>清空数据</span>
         </button>
         <button
+          v-if="widget.type === 'image' || (widget.type === 'button' && buttonConfig?.displayMode === 'image')"
+          class="clear-data-btn"
+          @click="widget.type === 'image' ? handleClearImage() : handleButtonClearImage()"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+            <path d="M3 6h18M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2m3 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6h14"/>
+            <path d="M10 11v6M14 11v6"/>
+          </svg>
+          <span>清除图片</span>
+        </button>
+        <button
+          v-if="widget.type === 'light'"
+          class="force-off-btn"
+          @click="handleToggleForceOff"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round">
+            <path d="M18 6L6 18" />
+            <path d="M6 6l12 12" />
+          </svg>
+          <span>关灯</span>
+        </button>
+        <button
           class="remove-btn"
           @click="emit('remove')"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
             <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
           </svg>
           <span>删除组件</span>
@@ -1628,12 +2065,12 @@ const handleRemoveRadioOption = (index: number) => {
 
 <style scoped>
 .sidebar-right {
-  width: 280px;
+  width: 260px;
   background: #fff;
   border-left: 1px solid #e0e0e0;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 48px);
+  height: 100%;
 }
 
 .panel-header {
@@ -1650,7 +2087,30 @@ const handleRemoveRadioOption = (index: number) => {
 .panel-content {
   flex: 1;
   overflow-y: auto;
-  padding: 0;
+  padding: 8px 0 0 0;
+}
+
+.panel-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.panel-content::-webkit-scrollbar-track {
+  background: #e8e8e8;
+  border-radius: 4px;
+}
+
+.panel-content::-webkit-scrollbar-thumb {
+  background: #ffa726;
+  border-radius: 4px;
+}
+
+.panel-content::-webkit-scrollbar-thumb:hover {
+  animation: scrollbar-hover-in 0.3s ease forwards;
+}
+
+@keyframes scrollbar-hover-in {
+  from { background: #ffa726; }
+  to { background: #e65100; }
 }
 
 .empty-state {
@@ -1689,13 +2149,13 @@ const handleRemoveRadioOption = (index: number) => {
 .config-item {
   display: flex;
   flex-direction: column;
-  padding: 10px 16px;
+  padding: 4px 16px;
 }
 
 .config-item label {
   font-size: 13px;
   color: #666;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .label-value {
@@ -1757,12 +2217,15 @@ const handleRemoveRadioOption = (index: number) => {
   padding: 10px;
   background: #f9f9f9;
   border-radius: 6px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .theme-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .theme-color-pick {
@@ -1819,6 +2282,7 @@ const handleRemoveRadioOption = (index: number) => {
 
 .theme-input {
   flex: 1;
+  min-width: 0;
   padding: 6px 8px;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
@@ -1830,6 +2294,7 @@ const handleRemoveRadioOption = (index: number) => {
   border: none;
   cursor: pointer;
   padding: 4px;
+  flex-shrink: 0;
   opacity: 0.6;
   transition: opacity 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -2022,7 +2487,7 @@ const handleRemoveRadioOption = (index: number) => {
 }
 
 .action-section {
-  padding: 12px 16px;
+  padding: 8px 12px;
   border-top: 1px solid #f0f0f0;
 }
 
@@ -2030,14 +2495,14 @@ const handleRemoveRadioOption = (index: number) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
-  padding: 10px;
+  padding: 8px;
   border: none;
   border-radius: 6px;
   background: #ef5350;
   color: #fff;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
   font-weight: 500;
@@ -2056,17 +2521,17 @@ const handleRemoveRadioOption = (index: number) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
-  padding: 10px;
+  padding: 8px;
   border: none;
   border-radius: 6px;
   background: #ffa726;
   color: #fff;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   font-weight: 500;
 }
 
@@ -2077,5 +2542,93 @@ const handleRemoveRadioOption = (index: number) => {
 
 .clear-data-btn:active {
   transform: scale(0.95);
+}
+
+.force-off-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  background: #5c9ce6;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.force-off-btn:hover {
+  opacity: 0.88;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.force-off-btn:active {
+  transform: scale(0.95);
+}
+
+.image-upload-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.image-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid #1e88e5;
+  border-radius: 6px;
+  background: #e3f2fd;
+  color: #1e88e5;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+  align-self: flex-start;
+}
+
+.image-upload-btn:hover {
+  background: #bbdefb;
+}
+
+.image-file-input-hidden {
+  display: none;
+}
+
+.image-name {
+  font-size: 11px;
+  color: #64b5f6;
+  word-break: break-all;
+}
+
+.image-name-placeholder {
+  font-size: 11px;
+  color: #bbb;
+}
+
+.image-format-hint {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  margin: 0 16px 12px;
+  background: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #2e7d32;
+  line-height: 1.5;
+  max-width: calc(100% - 32px);
+  box-sizing: border-box;
+}
+
+.image-format-hint svg {
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 </style>

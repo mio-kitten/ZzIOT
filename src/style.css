@@ -2,6 +2,37 @@
  * 全局样式文件
  * 定义全局重置样式、字体、滚动条、过渡动画等通用样式
  */
+
+@font-face {
+  font-family: 'HarmonyOS Sans SC';
+  src: url('./assets/fonts/HarmonyOS_Sans_SC.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  ascent-override: 101%;
+  descent-override: 5%;
+}
+
+@font-face {
+  font-family: 'HarmonyOS Sans SC';
+  src: url('./assets/fonts/HarmonyOS_Sans_SC.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  ascent-override: 101%;
+  descent-override: 5%;
+}
+
+@font-face {
+  font-family: 'HarmonyOS Sans';
+  src: url('./assets/fonts/HarmonyOS_Sans.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  ascent-override: 101%;
+  descent-override: 5%;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -9,7 +40,7 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'HarmonyOS Sans SC', 'HarmonyOS Sans', sans-serif;
   font-size: 14px;
   color: #333;
   background-color: #f0f2f5;
@@ -53,10 +84,12 @@ html, body {
   height: calc(100vh - 48px);
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+  position: relative;
 }
 
 .sidebar-left {
-  width: 200px;
+  width: 180px;
   background: #fff;
   border-right: 1px solid #e8e8e8;
   display: flex;
@@ -125,11 +158,13 @@ html, body {
   background-repeat: repeat;
   position: relative;
   overflow: auto;
+  min-width: 3000px;
   min-height: 3000px;
+  box-shadow: inset 0 0 0 8px #a8e6a8;
 }
 
 .sidebar-right {
-  width: 280px;
+  width: 260px;
   background: #fff;
   border-left: 1px solid #e8e8e8;
   display: flex;
@@ -137,11 +172,15 @@ html, body {
 }
 
 .btn {
-  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 18px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
+  line-height: 1.2;
   transition: all 0.2s;
   font-weight: 500;
 }
@@ -336,6 +375,29 @@ html, body {
   flex: 1;
 }
 
+.widget-delete {
+  color: #888;
+  cursor: pointer;
+  margin-left: 8px;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  visibility: hidden;
+  transition: color 0.15s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.widget:hover .widget-delete {
+  visibility: visible;
+}
+
+.widget-delete:hover {
+  color: #ef5350;
+}
+
+.widget-delete:active {
+  transform: scale(0.85);
+}
+
 .widget-content {
   padding: 12px;
   height: calc(100% - 40px);
@@ -378,6 +440,35 @@ html, body {
 .widget.transparent.bar-chart-type .widget-content,
 .widget.transparent.mini-area-type .widget-content {
   background: #ffffff;
+}
+
+/* 图片组件/灯组件：标题栏默认隐藏，悬停时显示 */
+.widget.image-type .widget-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.2s;
+  border-bottom: 1px solid transparent;
+}
+
+.widget.image-type:hover .widget-header {
+  opacity: 1;
+  border-bottom-color: #e8e8e8;
+}
+
+.widget.image-type.transparent .widget-header {
+  background: #f8f9fa;
+}
+
+.widget.image-type.transparent:hover .widget-header {
+  border-bottom-color: transparent;
+}
+
+.widget.image-type .widget-content {
+  height: 100%;
 }
 
 .connection-status {
