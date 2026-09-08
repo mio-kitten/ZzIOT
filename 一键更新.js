@@ -1,167 +1,147 @@
 const https = require('https')
-const http = require('http')
 const fs = require('fs')
 const path = require('path')
 const { execSync } = require('child_process')
 
+// ========== 配置 ==========
+const GITEE_API = 'https://gitee.com/api/v5/repos/XUELING-NORTH/ZzIOT/releases?page=1&per_page=100'
+const GITHUB_API = 'https://api.github.com/repos/mio-kitten/ZzIOT/releases'
+const GITEE_REPO = 'XUELING-NORTH/ZzIOT'
 const STABLE_REGEX = /^\d+\.\d+\.\d+\.\d+$/
 const TEST_REGEX = /^\d+\.\d+\.\d+$/
 
-function extractNumeric(v) {
-  v = v.replace(/^[Vv]/, '')
-  const m4 = v.match(/^(\d+\.\d+\.\d+\.\d+)/)
-  if (m4) return m4[1]
-  const m3 = v.match(/^(\d+\.\d+\.\d+)/)
-  if (m3) return m3[1]
-  return v
+// ========== 工具函数 ==========
+
+function showBanner(msg) {
+  console.log('')
+  console.log('================================================')
+  console.log('  ' + msg)
+  console.log('================================================')
 }
 
-function getVersionType(v) {
-  return STABLE_REGEX.test(v) ? 'stable' : 'test'
+function extractNumeric(tag) {
+  return (tag || '').replace(/^[vV]/, '')
 }
 
 function compareVersions(a, b) {
-  const pa = a.split('.').map(Number)
-  const pb = b.split('.').map(Number)
-  const len = Math.max(pa.length, pb.length)
-  for (let i = 0; i < len; i++) {
-    const diff = (pa[i] || 0) - (pb[i] || 0)
-    if (diff !== 0) return diff
+  const ap = a.split('.').map(Number)
+  const bp = b.split('.').map(Number)
+  for (let i = 0; i < Math.max(ap.length, bp.length); i++) {
+    const d = (ap[i] || 0) - (bp[i] || 0)
+    if (d !== 0) return d
   }
   return 0
 }
 
-function httpGet(url, redirects = 0) {
-  if (redirects > 5) return Promise.reject(new Error('重定向过多'))
+function httpGet(url) {
   return new Promise((resolve, reject) => {
-    const mod = url.startsWith('https') ? https : http
-    mod.get(url, { headers: { 'User-Agent': 'ZzIOT-Updater' } }, (res) => {
+    https.get(url, {
+      headers: {
+        'User-Agent': 'ZzIOT-Updater',
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        return httpGet(res.headers.location, redirects + 1).then(resolve, reject)
+        return httpGet(res.headers.location).then(resolve, reject)
       }
       if (res.statusCode !== 200) {
         return reject(new Error('HTTP ' + res.statusCode))
       }
       let data = ''
-      res.on('data', (c) => (data += c))
+      res.on('data', (c) => { data += c })
       res.on('end', () => resolve(data))
     }).on('error', reject)
   })
 }
 
-function downloadFile(url, destPath, redirects = 0) {
-  if (redirects > 5) return Promise.reject(new Error('重定向过多'))
+function downloadFile(url, destPath, expectedSize) {
   return new Promise((resolve, reject) => {
-    const mod = url.startsWith('https') ? https : http
-    const file = fs.createWriteStream(destPath)
-    let total = 0
-    let downloaded = 0
-    let lastPct = -1
-    let timedOut = false
-
-    const req = mod.get(url, { headers: { 'User-Agent': 'ZzIOT-Updater' } }, (res) => {
-      if (timedOut) return
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        file.close()
+    try {
+      execSync(
+        'curl.exe -L -f -o "' + destPath + '"' +
+        ' --max-time 7200 --connect-timeout 30' +
+        ' --retry 3 --retry-delay 10' +
+        ' -A "ZzIOT-Updater"' +
+        ' "' + url + '"',
+        { stdio: 'inherit', timeout: 7500000 }
+      )
+      const stats = fs.statSync(destPath)
+      if (expectedSize > 0 && stats.size !== expectedSize) {
         try { fs.unlinkSync(destPath) } catch (e) { /* ignore */ }
-        return downloadFile(res.headers.location, destPath, redirects + 1).then(resolve, reject)
+        throw new Error('size mismatch (expected ' + (expectedSize / 1024 / 1024).toFixed(1) + 'MB, got ' + (stats.size / 1024 / 1024).toFixed(1) + 'MB)')
       }
-      if (res.statusCode !== 200) {
-        file.close()
-        try { fs.unlinkSync(destPath) } catch (e) { /* ignore */ }
-        return reject(new Error('HTTP ' + res.statusCode))
-      }
-      total = parseInt(res.headers['content-length'] || '0', 10)
-      res.on('data', (chunk) => {
-        downloaded += chunk.length
-        file.write(chunk)
-        if (total > 0) {
-          const pct = Math.round((downloaded / total) * 100)
-          if (pct !== lastPct) {
-            lastPct = pct
-            process.stdout.write('\r下载进度: ' + pct + '%')
-          }
-        }
-      })
-      res.on('end', () => {
-        file.end()
-        process.stdout.write('\n')
-        resolve()
-      })
-      res.on('error', (err) => {
-        if (timedOut) return
-        file.close()
-        try { fs.unlinkSync(destPath) } catch (e) { /* ignore */ }
-        reject(err)
-      })
-    })
-
-    req.setTimeout(30000, () => {
-      timedOut = true
-      req.destroy()
-      file.close()
-      try { fs.unlinkSync(destPath) } catch (e) { /* ignore */ }
-      reject(new Error('连接超时(30s)'))
-    })
-
-    req.on('error', (err) => {
-      if (timedOut) return
-      file.close()
-      try { fs.unlinkSync(destPath) } catch (e) { /* ignore */ }
-      reject(err)
-    })
+      resolve()
+    } catch (e) {
+      try { fs.unlinkSync(destPath) } catch (e2) { /* ignore */ }
+      reject(new Error(e.message || 'download failed'))
+    }
   })
 }
 
-function copyDir(src, dest) {
-  if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true })
-  const entries = fs.readdirSync(src, { withFileTypes: true })
-  for (const entry of entries) {
-    const s = path.join(src, entry.name)
-    const d = path.join(dest, entry.name)
-    if (entry.isDirectory()) {
-      copyDir(s, d)
-    } else {
-      fs.copyFileSync(s, d)
-    }
-  }
-}
-
-function showBanner(title) {
-  console.log('')
-  console.log('================================================')
-  console.log('  ' + title)
-}
-
-function waitForInput() {
-  // 在 Node.js 中无法直接实现 pause，由 bat 文件的 pause 处理
-}
+// ========== 主流程 ==========
 
 async function main() {
-  // 读取当前版本
-  const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'))
-  const currentVer = extractNumeric(pkg.version)
-  const currentType = getVersionType(currentVer)
-  const typeLabel = currentType === 'stable' ? '稳定版' : '测试版'
+  // 解析参数
+  const args = process.argv.slice(2)
+  const isTest = args.includes('test') || args.includes('--test')
+  const currentType = isTest ? 'test' : 'stable'
+  const typeLabel = isTest ? '测试版' : '稳定版'
 
-  // 获取 Release 列表
-  let releases
-  try {
-    releases = JSON.parse(await httpGet('https://api.github.com/repos/mio-kitten/ZzIOT/releases'))
-  } catch (e) {
-    console.log('')
-    console.log('检查失败，请检查网络连接后重试。')
-    console.log('错误: ' + (e.message || e))
+  // 读取本地版本
+  const pkgPath = path.join(__dirname, 'package.json')
+  if (!fs.existsSync(pkgPath)) {
+    console.log('未找到 package.json，请确保在项目目录下运行。')
     return
+  }
+  const currentVer = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')).version || '0'
+
+  showBanner('ZzIOT 一键更新')
+  console.log('  > 更新类型: ' + typeLabel)
+  console.log('  > 当前版本: ' + currentVer)
+
+  // 获取版本信息（Gitee 优先，GitHub 兜底）
+  console.log('')
+  console.log('正在获取版本信息...')
+  let releases = null
+
+  // 方式 1：Gitee API
+  try {
+    const raw = await httpGet(GITEE_API)
+    const data = JSON.parse(raw)
+    if (Array.isArray(data) && data.length > 0) {
+      // 统一字段名（Gitee 用 download_url，GitHub 用 browser_download_url）
+      releases = data.map((r) => ({
+        tag_name: r.tag_name,
+        name: r.name || r.tag_name,
+        assets: (r.assets || []).map((a) => ({
+          name: a.name,
+          browser_download_url: a.browser_download_url || a.download_url || a.url,
+          size: a.size || 0,
+        })),
+        zipball_url: r.zipball_url || r.tarball_url || '',
+      }))
+      console.log('已连接 Gitee 码云')
+    }
+  } catch (e) {
+    console.log('Gitee 连接失败: ' + (e.message || e))
+  }
+
+  // 方式 2：GitHub API（兜底）
+  if (!releases) {
+    try {
+      releases = JSON.parse(await httpGet(GITHUB_API))
+      console.log('已连接 GitHub')
+    } catch (e) {
+      console.log('GitHub 连接失败: ' + (e.message || e))
+    }
   }
 
   if (!Array.isArray(releases) || releases.length === 0) {
-    console.log('')
-    console.log('暂无发布版本，请稍后重试。')
+    console.log('暂无发布版本。')
     return
   }
 
-  // 过滤同类型版本并排序
+  // 过滤 + 排序
   const matchReleases = releases
     .filter((r) => {
       const tag = extractNumeric(r.tag_name || '')
@@ -172,7 +152,6 @@ async function main() {
     )
 
   if (matchReleases.length === 0) {
-    console.log('')
     console.log('暂无' + typeLabel + ' Release。')
     return
   }
@@ -180,16 +159,20 @@ async function main() {
   const latest = matchReleases[0]
   const latestTag = extractNumeric(latest.tag_name || '')
 
-  // 比较版本
+  // 版本比较
   if (compareVersions(latestTag, currentVer) <= 0) {
-    showBanner('已是最新' + typeLabel + '！')
+    console.log('')
+    console.log('================================================')
+    console.log('  已是最新' + typeLabel + '！')
     console.log('  > 当前版本: ' + currentVer)
     console.log('================================================')
     return
   }
 
   // 发现新版本
-  showBanner('发现新' + typeLabel + '！')
+  console.log('')
+  console.log('================================================')
+  console.log('  发现新' + typeLabel + '！')
   console.log('  > 当前版本: ' + currentVer)
   console.log('  >> 最新版本: ' + latestTag)
   console.log('================================================')
@@ -199,14 +182,12 @@ async function main() {
     input: process.stdin,
     output: process.stdout
   })
-
   const answer = await new Promise((resolve) => {
     readline.question('\n是否更新？(Y/N): ', (ans) => {
       readline.close()
       resolve(ans)
     })
   })
-
   if (answer.toUpperCase() !== 'Y') {
     console.log('已取消更新。')
     return
@@ -219,46 +200,47 @@ async function main() {
       (a) => (a.name || '').endsWith('.zip') || (a.name || '').endsWith('.7z') || (a.name || '').endsWith('.rar')
     )
   }
-  const downloadPath = zipAsset
-    ? zipAsset.browser_download_url
-    : latest.zipball_url || ''
-
-  if (!downloadPath) {
-    console.log('')
+  const githubUrl = zipAsset ? zipAsset.browser_download_url : latest.zipball_url || ''
+  if (!githubUrl) {
     console.log('未找到下载文件，请手动更新。')
     return
   }
 
-  // 下载
+  // 准备下载
   const tempDir = process.env.TEMP || process.env.TMP || '.'
-  const ext = downloadPath.match(/\.(zip|7z|rar)(\?|$)/i)
-  const suffix = ext ? ext[1] : 'zip'
+  const ext = githubUrl.match(/\.(zip|7z|rar)(\?|$)/i)
+  const suffix = ext ? ext[1] : '7z'
   const zipFile = path.join(tempDir, 'zziot_update.' + suffix)
   const extractDir = path.join(tempDir, 'zziot_extract')
+  const expectedSize = zipAsset ? zipAsset.size : 0
+  const assetName = zipAsset ? zipAsset.name : githubUrl.split('/').pop()?.split('?')[0] || 'update.' + suffix
 
-  // 多镜像 + 直连兜底，依次尝试
-  const downloadPathGh = downloadPath.replace('https://github.com/', '')
-  const MIRRORS = [
-    { name: '直连 GitHub', url: downloadPath },
-    { name: 'ghproxy 线路1', url: 'https://ghproxy.com/https://github.com/' + downloadPathGh },
-    { name: 'ghproxy 线路2', url: 'https://mirror.ghproxy.com/https://github.com/' + downloadPathGh },
+  // 构建下载列表（Gitee 优先，直连 GitHub 兜底）
+  const giteeUrl = 'https://gitee.com/' + GITEE_REPO + '/releases/download/' + latest.tag_name + '/' + assetName
+  const mirrors = [
+    { name: 'Gitee 码云', url: giteeUrl },
+    { name: '直连 GitHub', url: githubUrl },
   ]
 
+  console.log('')
+  console.log('文件: ' + assetName + ' (' + (expectedSize / 1024 / 1024).toFixed(1) + ' MB)')
+
+  // 依次尝试下载
   let downloadSuccess = false
-  for (let i = 0; i < MIRRORS.length; i++) {
-    const mirror = MIRRORS[i]
+  for (let i = 0; i < mirrors.length; i++) {
+    const m = mirrors[i]
     for (let attempt = 1; attempt <= 2; attempt++) {
       console.log('')
-      console.log('[' + mirror.name + '] 下载中... (第' + attempt + '次尝试)')
+      console.log('[' + m.name + '] 下载中... (第' + attempt + '次尝试)')
       try {
-        await downloadFile(mirror.url, zipFile)
+        await downloadFile(m.url, zipFile, expectedSize)
         downloadSuccess = true
         break
       } catch (e) {
-        console.log('[' + mirror.name + '] 失败: ' + (e.message || e))
+        console.log('[' + m.name + '] 失败: ' + (e.message || e))
         if (attempt < 2) {
-          console.log('等待 2 秒后重试...')
-          await new Promise(r => setTimeout(r, 2000))
+          console.log('等待 3 秒后重试...')
+          await new Promise(r => setTimeout(r, 3000))
         }
       }
     }
@@ -267,66 +249,120 @@ async function main() {
 
   if (!downloadSuccess) {
     console.log('')
-    console.log('所有下载方式均失败，请检查网络或手动下载更新。')
+    console.log('所有下载方式均失败，请检查网络或手动下载。')
     return
   }
 
-  console.log('下载完成，正在解压...')
-
   // 解压
+  console.log('')
+  console.log('下载完成，正在解压...')
   if (fs.existsSync(extractDir)) {
     fs.rmSync(extractDir, { recursive: true, force: true })
   }
   fs.mkdirSync(extractDir, { recursive: true })
 
-  try {
-    if (suffix === 'zip') {
-      execSync(
-        'powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -Path \'' + zipFile + '\' -DestinationPath \'' + extractDir + '\' -Force"',
-        { stdio: 'pipe' }
-      )
-    } else {
-      execSync(
-        'powershell -NoProfile -ExecutionPolicy Bypass -Command "' +
-        '$shell = New-Object -ComObject Shell.Application; ' +
-        '$zip = $shell.NameSpace(\'' + zipFile + '\'); ' +
-        '$dest = $shell.NameSpace(\'' + extractDir + '\'); ' +
-        '$dest.CopyHere($zip.Items(), 16); ' +
-        'do { Start-Sleep -Milliseconds 300 } while (@($dest.Items()).Count -lt @($zip.Items()).Count)' +
-        '"',
-        { stdio: 'pipe', maxBuffer: 10 * 1024 * 1024 }
-      )
+  let extracted = false
+
+  // 尝试 1：7z
+  const sevenZipPaths = ['7z', '7z.exe', 'C:\\Program Files\\7-Zip\\7z.exe', 'C:\\Program Files (x86)\\7-Zip\\7z.exe']
+  for (const zp of sevenZipPaths) {
+    try {
+      execSync('"' + zp + '" x "' + zipFile + '" -o"' + extractDir + '" -aoa -y', { stdio: 'pipe', timeout: 120000 })
+      extracted = true
+      console.log('使用 7z 解压完成')
+      break
+    } catch (e) { /* try next */ }
+  }
+
+  // 尝试 2：WinRAR
+  if (!extracted) {
+    const wrPaths = ['WinRAR', 'WinRAR.exe', 'C:\\Program Files\\WinRAR\\WinRAR.exe', 'C:\\Program Files (x86)\\WinRAR\\WinRAR.exe']
+    for (const wr of wrPaths) {
+      try {
+        execSync('"' + wr + '" x -o+ "' + zipFile + '" "' + extractDir + '"', { stdio: 'pipe', timeout: 120000 })
+        extracted = true
+        console.log('使用 WinRAR 解压完成')
+        break
+      } catch (e) { /* try next */ }
     }
-  } catch (e) {
-    console.log('解压失败: ' + (e.message || e))
-    try { fs.unlinkSync(zipFile) } catch (e2) { /* ignore */ }
+  }
+
+  // 尝试 3：系统工具
+  if (!extracted) {
+    try {
+      if (suffix === 'zip') {
+        execSync(
+          'powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -Path \'' + zipFile + '\' -DestinationPath \'' + extractDir + '\' -Force"',
+          { stdio: 'pipe' }
+        )
+      } else {
+        execSync(
+          'powershell -NoProfile -ExecutionPolicy Bypass -Command "' +
+          '$shell = New-Object -ComObject Shell.Application; ' +
+          '$zip = $shell.NameSpace(\'' + zipFile + '\'); ' +
+          '$dest = $shell.NameSpace(\'' + extractDir + '\'); ' +
+          '$dest.CopyHere($zip.Items(), 16); ' +
+          'do { Start-Sleep -Milliseconds 300 } while (@($dest.Items()).Count -lt @($zip.Items()).Count); ' +
+          'Start-Sleep -Seconds 3' +
+          '"',
+          { stdio: 'pipe', maxBuffer: 10 * 1024 * 1024 }
+        )
+      }
+      extracted = true
+      console.log('使用系统工具解压完成')
+    } catch (e) {
+      console.log('解压失败: ' + (e.message || e))
+      try { fs.unlinkSync(zipFile) } catch (e2) { /* ignore */ }
+      return
+    }
+  }
+
+  // 验证解压结果
+  const extractEntries = fs.readdirSync(extractDir, { withFileTypes: true })
+  if (extractEntries.length === 0) {
+    console.log('解压失败：目录为空')
+    try { fs.unlinkSync(zipFile) } catch (e) { /* ignore */ }
     return
   }
+  console.log('解压目录包含 ' + extractEntries.length + ' 个条目')
 
-  // 找到解压后的实际内容目录
+  // 定位实际内容目录
   let innerDir = extractDir
-  const entries = fs.readdirSync(extractDir, { withFileTypes: true })
-  const dirs = entries.filter((e) => e.isDirectory())
-  if (dirs.length === 1 && entries.every((e) => e.isDirectory() || (e.name || '').match(/\.(zip|7z|rar)$/i))) {
+  const dirs = extractEntries.filter((e) => e.isDirectory())
+  const archives = extractEntries.filter((e) => !e.isDirectory() && (e.name || '').match(/\.(zip|7z|rar)$/i))
+  if (dirs.length === 1 && extractEntries.length === dirs.length + archives.length) {
     innerDir = path.join(extractDir, dirs[0].name)
+    console.log('自动进入子目录: ' + dirs[0].name)
   }
 
-  console.log('正在覆盖文件...')
-
   // 覆盖文件
+  console.log('')
+  console.log('正在覆盖文件...')
   const projectDir = process.cwd()
-  const innerEntries = fs.readdirSync(innerDir, { withFileTypes: true })
-  for (const entry of innerEntries) {
-    const s = path.join(innerDir, entry.name)
-    const d = path.join(projectDir, entry.name)
-    if (entry.isDirectory()) {
-      copyDir(s, d)
-    } else {
-      fs.copyFileSync(s, d)
+
+  try {
+    execSync(
+      'robocopy "' + innerDir + '" "' + projectDir + '" /E /R:3 /W:2 /NP /NDL /NJH /NJS /NS /NC',
+      { stdio: 'pipe', timeout: 120000 }
+    )
+    console.log('文件覆盖完成')
+  } catch (e) {
+    if (e.status >= 8) {
+      console.log('robocopy 部分失败，尝试备用方式...')
+      try {
+        execSync(
+          'powershell -NoProfile -ExecutionPolicy Bypass -Command "Copy-Item -Path \'' + innerDir + '\\*\' -Destination \'' + projectDir + '\' -Recurse -Force -ErrorAction SilentlyContinue"',
+          { stdio: 'pipe', timeout: 120000 }
+        )
+        console.log('备用方式覆盖完成')
+      } catch (e2) {
+        console.log('文件覆盖失败: ' + (e2.message || e2))
+        return
+      }
     }
   }
 
-  // 清理临时文件
+  // 清理
   try { fs.unlinkSync(zipFile) } catch (e) { /* ignore */ }
   try { fs.rmSync(extractDir, { recursive: true, force: true }) } catch (e) { /* ignore */ }
 
