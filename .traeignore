@@ -1,9 +1,0 @@
-node_modules/
-dist/
-build/
-.git/
-*.log
-*.mp4
-*.png
-*.jpg
-*.pdf
