@@ -1,29 +1,29 @@
-ï»¿@echo off
-title ZzIOT-å†…ç½‘æœåŠ¡ ^> å¯åŠ¨
+@echo off
+title ZzIOT-ÄÚÍø·þÎñ ^> Æô¶¯
 cd /d "%~dp0"
 
 echo.
 echo ================================================
-echo          ZzIOT-å†…ç½‘æœåŠ¡ ^> å¯åŠ¨
+echo          ZzIOT-ÄÚÍø·þÎñ ^> Æô¶¯
 echo ================================================
 echo.
 
 whoami /groups 2>nul | find "S-1-16-12288" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [é”™è¯¯] è¯·ä»¥ç®¡ç†å‘˜èº«ä»½è¿è¡Œæ­¤ç¨‹åºï¼
+    echo [´íÎó] ÇëÒÔ¹ÜÀíÔ±Éí·ÝÔËÐÐ´Ë³ÌÐò£¡
     echo.
-    echo å³é”®ç‚¹å‡»"å¯åŠ¨å†…ç½‘æœåŠ¡.bat"ï¼Œé€‰æ‹©"ä»¥ç®¡ç†å‘˜èº«ä»½è¿è¡Œ"
+    echo ÓÒ¼üµã»÷"Æô¶¯ÄÚÍø·þÎñ.bat"£¬Ñ¡Ôñ"ÒÔ¹ÜÀíÔ±Éí·ÝÔËÐÐ"
     echo.
     pause
     exit /b
 )
-echo [OK] å·²èŽ·å–ç®¡ç†å‘˜æƒé™
+echo [OK] ÒÑ»ñÈ¡¹ÜÀíÔ±È¨ÏÞ
 echo.
 
-echo [æ³¨æ„] è¯·ç¡®ä¿ WiFi å¼€å…³å¤„äºŽå¼€å¯çŠ¶æ€ï¼ˆå³ä½¿ä¸è¿žæŽ¥ç½‘ç»œï¼‰
-echo æ­£åœ¨æ£€æŸ¥ WiFi çŠ¶æ€...
+echo [×¢Òâ] ÇëÈ·±£ WiFi ¿ª¹Ø´¦ÓÚ¿ªÆô×´Ì¬£¨¼´Ê¹²»Á¬½ÓÍøÂç£©
+echo ÕýÔÚ¼ì²é WiFi ×´Ì¬...
 
-> "%TEMP%\wifi_check.ps1" echo $w=Get-NetAdapter -Physical ^| Where-Object {($_.InterfaceType -eq 71^) -or ($_.Name -match 'Wi-Fi^|WLAN^|Wireless^|802.11^|WiFi^|æ— çº¿'^)} ^| Select-Object -First 1
+> "%TEMP%\wifi_check.ps1" echo $w=Get-NetAdapter -Physical ^| Where-Object {($_.InterfaceType -eq 71^) -or ($_.Name -match 'Wi-Fi^|WLAN^|Wireless^|802.11^|WiFi^|ÎÞÏß'^)} ^| Select-Object -First 1
 >> "%TEMP%\wifi_check.ps1" echo if(-not $w){'NO_WIFI'}elseif($w.Status -eq 'Up'){'WIFI_OK'}elseif($w.Status -eq 'Disabled'){Enable-NetAdapter -Name $w.Name -Confirm:$false -EA 0;sleep 2;$w2=Get-NetAdapter -Name $w.Name;if($w2.Status -eq 'Up'){'WIFI_ENABLED'}else{'WIFI_FAIL'}}else{'WIFI_NOT_UP:'+$w.Status}
 
 powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\wifi_check.ps1" > "%TEMP%\wifi_check.txt"
@@ -34,63 +34,63 @@ del "%TEMP%\wifi_check.txt" 2>nul
 if "%WIFI_STATUS%"=="" goto :SKIP_WIFI
 if "%WIFI_STATUS%"=="NO_WIFI" goto :SKIP_WIFI
 if "%WIFI_STATUS%"=="WIFI_FAIL" (
-    echo [é”™è¯¯] WiFi å¼€å…³å·²å…³é—­ï¼Œå°è¯•è‡ªåŠ¨å¼€å¯å¤±è´¥
-    echo è¯·æ‰‹åŠ¨æ‰“å¼€ WiFi å¼€å…³åŽé‡æ–°è¿è¡Œ
+    echo [´íÎó] WiFi ¿ª¹ØÒÑ¹Ø±Õ£¬³¢ÊÔ×Ô¶¯¿ªÆôÊ§°Ü
+    echo ÇëÊÖ¶¯´ò¿ª WiFi ¿ª¹ØºóÖØÐÂÔËÐÐ
     echo.
-    echo æŒ‰ä¸‹ä»»æ„é”®é€€å‡º...
+    echo °´ÏÂÈÎÒâ¼üÍË³ö...
     pause >nul
     exit /b
 )
 if "%WIFI_STATUS%"=="WIFI_ENABLED" (
-    echo [OK] WiFi å·²è‡ªåŠ¨å¼€å¯
+    echo [OK] WiFi ÒÑ×Ô¶¯¿ªÆô
     echo.
 )
 if "%WIFI_STATUS%"=="WIFI_OK" (
-    echo [OK] WiFi å·²å¼€å¯
+    echo [OK] WiFi ÒÑ¿ªÆô
     echo.
 )
 :SKIP_WIFI
 
 node --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [é”™è¯¯] æœªæ£€æµ‹åˆ° Node.js
-    echo è¯·è¿è¡Œ"æ£€æŸ¥å®‰è£…ä¾èµ–"æˆ–è€…åœ¨æ–‡ä»¶å¤¹ä¸­å®‰è£…å¯¹åº” node å®‰è£…åŒ…
+    echo [´íÎó] Î´¼ì²âµ½ Node.js
+    echo ÇëÔËÐÐ"¼ì²é°²×°ÒÀÀµ"»òÕßÔÚÎÄ¼þ¼ÐÖÐ°²×°¶ÔÓ¦ node °²×°°ü
     echo.
-    echo æŒ‰ä¸‹ä»»æ„é”®é€€å‡º...
+    echo °´ÏÂÈÎÒâ¼üÍË³ö...
     pause >nul
     exit /b
 )
 
-REM æ£€æŸ¥ node_modules æ˜¯å¦å­˜åœ¨
+REM ¼ì²é node_modules ÊÇ·ñ´æÔÚ
 if not exist "node_modules\" (
-    echo [é”™è¯¯] é¡¹ç›®ä¾èµ–æœªå®‰è£…
-    echo è¯·å…ˆè¿è¡Œ"æ£€æŸ¥å®‰è£…ä¾èµ–.bat"å®‰è£…é¡¹ç›®ä¾èµ–
+    echo [´íÎó] ÏîÄ¿ÒÀÀµÎ´°²×°
+    echo ÇëÏÈÔËÐÐ"¼ì²é°²×°ÒÀÀµ.bat"°²×°ÏîÄ¿ÒÀÀµ
     echo.
-    echo æŒ‰ä¸‹ä»»æ„é”®é€€å‡º...
+    echo °´ÏÂÈÎÒâ¼üÍË³ö...
     pause >nul
     exit /b
 )
 
-REM æ£€æŸ¥ JSZip æ˜¯å¦å®‰è£…
+REM ¼ì²é JSZip ÊÇ·ñ°²×°
 if not exist "node_modules\jszip\" (
-    echo [é”™è¯¯] JSZip æœªå®‰è£…ï¼Œå›¾ç‰‡å¯¼å‡ºåŠŸèƒ½å°†ä¸å¯ç”¨
-    echo è¯·å…ˆè¿è¡Œ"æ£€æŸ¥å®‰è£…ä¾èµ–.bat"å®‰è£… JSZip ä¾èµ–
+    echo [´íÎó] JSZip Î´°²×°£¬Í¼Æ¬µ¼³ö¹¦ÄÜ½«²»¿ÉÓÃ
+    echo ÇëÏÈÔËÐÐ"¼ì²é°²×°ÒÀÀµ.bat"°²×° JSZip ÒÀÀµ
     echo.
-    echo æŒ‰ä¸‹ä»»æ„é”®é€€å‡º...
+    echo °´ÏÂÈÎÒâ¼üÍË³ö...
     pause >nul
     exit /b
 )
 
-echo å¯åŠ¨å†…ç½‘æœåŠ¡åŽç«¯...
-start "ZzIOT-å†…ç½‘æ•°æ®é¢æ¿" cmd /k "cd /d ""%~dp0"" && npm run server"
+echo Æô¶¯ÄÚÍø·þÎñºó¶Ë...
+start "ZzIOT-ÄÚÍøÊý¾ÝÃæ°å" cmd /k "cd /d ""%~dp0"" && npm run server"
 echo.
 echo ================================================
-echo         å†…ç½‘æœåŠ¡å¯åŠ¨å®Œæˆï¼
+echo         ÄÚÍø·þÎñÆô¶¯Íê³É£¡
 echo ================================================
 echo.
-echo æ•°æ®ç®¡ç†é¡µé¢: http://localhost:8080
-echo æç¤º: åœ¨å¯è§†åŒ–é¢æ¿ä¸­ç‚¹å‡»"å†…ç½‘æœåŠ¡"å¯å¼€å…³MQTT Broker
+echo Êý¾Ý¹ÜÀíÒ³Ãæ: http://localhost:8080
+echo ÌáÊ¾: ÔÚ¿ÉÊÓ»¯Ãæ°åÖÐµã»÷"ÄÚÍø·þÎñ"¿É¿ª¹ØMQTT Broker
 echo.
-echo æœ¬çª—å£å°†åœ¨ 3 ç§’åŽè‡ªåŠ¨å…³é—­...
+echo ±¾´°¿Ú½«ÔÚ 3 Ãëºó×Ô¶¯¹Ø±Õ...
 timeout /t 3 /nobreak >nul
 exit

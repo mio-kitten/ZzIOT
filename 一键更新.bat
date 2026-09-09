@@ -1,15 +1,14 @@
-ï»¿@echo off
-chcp 65001 >nul 2>&1
-title ZzIOT - ä¸€é”®æ›´æ–°
+@echo off
+title ZzIOT - Ò»¼ü¸üÐÂ
 cd /d "%~dp0"
 
 echo.
 echo ================================================
-echo        ZzIOT ^> ä¸€é”®æ›´æ–°
+echo        ZzIOT ^> Ò»¼ü¸üÐÂ
 echo ================================================
 echo.
-echo æ£€æŸ¥æ›´æ–°ä¸­...
+echo ¼ì²é¸üÐÂÖÐ...
 
-node "ä¸€é”®æ›´æ–°.js"
+node "Ò»¼ü¸üÐÂ.js"
 pause
 exit /b
