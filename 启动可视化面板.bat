@@ -1,7 +1,6 @@
-@echo off
+﻿@echo off
 for /F %%e in ('echo prompt $E ^| cmd') do set "ESC=%%e"
-chcp 65001 >nul 2>&1
-    title ZzIOT-可视化面板 ^> 启动
+title ZzIOT-可视化面板 ^> 启动
 
 cd /d "%~dp0"
 

@@ -6,11 +6,22 @@ dist/
 dist_electron/
 build/
 
+# Git
+.git/
+
+# GitHub
+.github/
+
 # IDE
-.idea/
 .vscode/
+.idea/
 *.swp
 *.swo
+
+# Config
+.gitignore
+.traeignore
+.trae/
 
 # OS
 .DS_Store
@@ -23,15 +34,15 @@ Thumbs.db
 .env.*.local
 
 # Logs
+debug.log
 *.log
 npm-debug.log*
+
+# 数据文件
+server/data/
+server/data/ap-config.json
+server/data/iot-data.json
 
 # Installers (保留根目录的安装包)
 !node-v*.msi
 build/**/*.msi
-
-# 数据文件（含用户消息记录，不追踪）
-server/data/
-
-# 启动脚本（可选，如果你不想追踪）
-# *.bat

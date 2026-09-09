@@ -1,6 +1,7 @@
 const https = require('https')
 const fs = require('fs')
 const path = require('path')
+const os = require('os')
 const { execSync } = require('child_process')
 
 // ========== 配置 ==========
@@ -87,6 +88,10 @@ async function main() {
   const currentType = isTest ? 'test' : 'stable'
   const typeLabel = isTest ? '测试版' : '稳定版'
 
+  // 清理上次更新残留的旧文件
+  try { fs.unlinkSync(path.join(__dirname, '一键更新.old.bat')) } catch (e) { /* ignore */ }
+  try { fs.unlinkSync(path.join(__dirname, '一键更新.old.js')) } catch (e) { /* ignore */ }
+
   // 读取本地版本
   const pkgPath = path.join(__dirname, 'package.json')
   if (!fs.existsSync(pkgPath)) {
@@ -95,13 +100,6 @@ async function main() {
   }
   const currentVer = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')).version || '0'
 
-  showBanner('ZzIOT 一键更新')
-  console.log('  > 更新类型: ' + typeLabel)
-  console.log('  > 当前版本: ' + currentVer)
-
-  // 获取版本信息（Gitee 优先，GitHub 兜底）
-  console.log('')
-  console.log('正在获取版本信息...')
   let releases = null
 
   // 方式 1：Gitee API
@@ -120,19 +118,17 @@ async function main() {
         })),
         zipball_url: r.zipball_url || r.tarball_url || '',
       }))
-      console.log('已连接 Gitee 码云')
     }
   } catch (e) {
-    console.log('Gitee 连接失败: ' + (e.message || e))
+    // Gitee 失败，静默降级
   }
 
   // 方式 2：GitHub API（兜底）
   if (!releases) {
     try {
       releases = JSON.parse(await httpGet(GITHUB_API))
-      console.log('已连接 GitHub')
     } catch (e) {
-      console.log('GitHub 连接失败: ' + (e.message || e))
+      // GitHub 也失败
     }
   }
 
@@ -215,11 +211,10 @@ async function main() {
   const expectedSize = zipAsset ? zipAsset.size : 0
   const assetName = zipAsset ? zipAsset.name : githubUrl.split('/').pop()?.split('?')[0] || 'update.' + suffix
 
-  // 构建下载列表（Gitee 优先，直连 GitHub 兜底）
   const giteeUrl = 'https://gitee.com/' + GITEE_REPO + '/releases/download/' + latest.tag_name + '/' + assetName
   const mirrors = [
-    { name: 'Gitee 码云', url: giteeUrl },
-    { name: '直连 GitHub', url: githubUrl },
+    { name: '线路 1', url: giteeUrl },
+    { name: '线路 2', url: githubUrl },
   ]
 
   console.log('')
@@ -340,6 +335,14 @@ async function main() {
   console.log('正在覆盖文件...')
   const projectDir = process.cwd()
 
+  // 先重命名正在运行的文件，避免占用导致覆盖失败
+  const runningFiles = ['一键更新.bat', '一键更新.js']
+  for (const f of runningFiles) {
+    const src = path.join(projectDir, f)
+    const dst = path.join(projectDir, f.replace(/\.(bat|js)$/, '.old.$1'))
+    try { fs.renameSync(src, dst) } catch (e) { /* 忽略，可能不存在 */ }
+  }
+
   try {
     execSync(
       'robocopy "' + innerDir + '" "' + projectDir + '" /E /R:3 /W:2 /NP /NDL /NJH /NJS /NS /NC',
@@ -362,9 +365,24 @@ async function main() {
     }
   }
 
-  // 清理
+  // 清理临时文件
   try { fs.unlinkSync(zipFile) } catch (e) { /* ignore */ }
   try { fs.rmSync(extractDir, { recursive: true, force: true }) } catch (e) { /* ignore */ }
+
+  // 延迟清理 .old 文件（写入临时脚本，后台执行）
+  try {
+    const cleanupBat = path.join(os.tmpdir(), 'zziot_cleanup.bat')
+    const oldBat = path.join(projectDir, '一键更新.old.bat')
+    const oldJs = path.join(projectDir, '一键更新.old.js')
+    fs.writeFileSync(cleanupBat,
+      '@echo off\r\n' +
+      'ping -n 3 127.0.0.1 >nul\r\n' +
+      'del /f /q "' + oldBat + '" 2>nul\r\n' +
+      'del /f /q "' + oldJs + '" 2>nul\r\n' +
+      'del /f /q "' + cleanupBat + '" 2>nul\r\n'
+    )
+    execSync('start "" /b cmd /c "' + cleanupBat + '"', { stdio: 'ignore', timeout: 3000 })
+  } catch (e) { /* ignore */ }
 
   showBanner('更新成功！请重新启动项目。')
 }

@@ -3,7 +3,7 @@
 # ZzIOT 
 ### > 一个物联网数据可视化面板 + 本地内网创建服务(包括无网) 的集合体工具 <
 ---
-[![version](https://img.shields.io/badge/3.0.26.908-orange)](https://github.com/mio-kitten/zziot)
+[![version](https://img.shields.io/badge/3.0.26.909-orange)](https://github.com/mio-kitten/zziot)
 [![platform](https://img.shields.io/badge/Windows%2010%2B-red)](https://github.com/mio-kitten/zziot)
 [![Node.js](https://img.shields.io/badge/Node.js-339933)](https://nodejs.org/)
 [![Vue](https://img.shields.io/badge/Vue%203-4FC08D)](https://vuejs.org/)
@@ -21,7 +21,7 @@
 | **已支持的平台** | Windows 10 及以上X64 |
 | **组件数量** | 11 个 |
 | **状态** | 开发中 |
-|**版本** | 3.0.26.908 | 
+|**版本** | 3.0.26.909 | 
 
 ---
 
@@ -96,14 +96,18 @@
 
 ---
 
-# 😍下载方式：GitHub Releases 中下载 压缩包 (永远保持最新)
+# 😍下载方式：Releases 中下载 压缩包 (永远保持最新)
 
 #### 或
 
-### 用123云盘下载（3.0.26.908）：
-
-[网盘链接（rar包体59.56 MB）](https://1842972489.share.123pan.cn/123pan/SJqUTd-M9Xe3)
+### 用123云盘下载：
+[https://1842972489.share.123pan.cn/123pan/SJqUTd-M9Xe3](https://1842972489.share.123pan.cn/123pan/SJqUTd-M9Xe3)
 > 提取码：NOTH
+
+### 用蓝奏云下载：
+[https://xlbot.lanzoue.com/b01d780swb](https://xlbot.lanzoue.com/b01d780swb)
+> 密码:6y56
+
 
     稳定版版本号详解，例：V2.3.26.819
                          ————  ——————

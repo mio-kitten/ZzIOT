@@ -1,5 +1,4 @@
-@echo off
-chcp 65001 >nul 2>&1
+﻿@echo off
 title ZzIOT-内网服务 ^> 启动
 cd /d "%~dp0"
 
