@@ -19,7 +19,7 @@
 | --- | --- |
 | **所用技术栈** | Node.js、Vue 3、TypeScript、Vite、Chart.js、MQTT.js、Express、Aedes |
 | **已支持的平台** | Windows 10 及以上X64 |
-| **组件数量** | 11 个 |
+| **组件数量** | 13 个 |
 | **状态** | 开发中 |
 |**版本** | 3.0.26.909 | 
 
