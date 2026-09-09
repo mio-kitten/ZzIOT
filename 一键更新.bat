@@ -9,6 +9,6 @@ echo ================================================
 echo.
 echo 检查更新中...
 
-node "一键更新.js"
+node "Update.js"
 pause
 exit /b

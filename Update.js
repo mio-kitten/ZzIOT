@@ -335,14 +335,6 @@ async function main() {
   console.log('正在覆盖文件...')
   const projectDir = process.cwd()
 
-  // 先重命名正在运行的文件，避免占用导致覆盖失败
-  const runningFiles = ['一键更新.bat', '一键更新.js']
-  for (const f of runningFiles) {
-    const src = path.join(projectDir, f)
-    const dst = path.join(projectDir, f.replace(/\.(bat|js)$/, '.old.$1'))
-    try { fs.renameSync(src, dst) } catch (e) { /* 忽略，可能不存在 */ }
-  }
-
   try {
     execSync(
       'robocopy "' + innerDir + '" "' + projectDir + '" /E /R:3 /W:2 /NP /NDL /NJH /NJS /NS /NC',
@@ -368,21 +360,6 @@ async function main() {
   // 清理临时文件
   try { fs.unlinkSync(zipFile) } catch (e) { /* ignore */ }
   try { fs.rmSync(extractDir, { recursive: true, force: true }) } catch (e) { /* ignore */ }
-
-  // 延迟清理 .old 文件（写入临时脚本，后台执行）
-  try {
-    const cleanupBat = path.join(os.tmpdir(), 'zziot_cleanup.bat')
-    const oldBat = path.join(projectDir, '一键更新.old.bat')
-    const oldJs = path.join(projectDir, '一键更新.old.js')
-    fs.writeFileSync(cleanupBat,
-      '@echo off\r\n' +
-      'ping -n 3 127.0.0.1 >nul\r\n' +
-      'del /f /q "' + oldBat + '" 2>nul\r\n' +
-      'del /f /q "' + oldJs + '" 2>nul\r\n' +
-      'del /f /q "' + cleanupBat + '" 2>nul\r\n'
-    )
-    execSync('start "" /b cmd /c "' + cleanupBat + '"', { stdio: 'ignore', timeout: 3000 })
-  } catch (e) { /* ignore */ }
 
   showBanner('更新成功！请重新启动项目。')
 }
