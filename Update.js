@@ -1,7 +1,6 @@
 const https = require('https')
 const fs = require('fs')
 const path = require('path')
-const os = require('os')
 const { execSync } = require('child_process')
 
 // ========== 配置 ==========
@@ -308,6 +307,7 @@ async function main() {
     } catch (e) {
       console.log('解压失败: ' + (e.message || e))
       try { fs.unlinkSync(zipFile) } catch (e2) { /* ignore */ }
+      try { fs.rmSync(extractDir, { recursive: true, force: true }) } catch (e2) { /* ignore */ }
       return
     }
   }
@@ -317,6 +317,7 @@ async function main() {
   if (extractEntries.length === 0) {
     console.log('解压失败：目录为空')
     try { fs.unlinkSync(zipFile) } catch (e) { /* ignore */ }
+    try { fs.rmSync(extractDir, { recursive: true, force: true }) } catch (e) { /* ignore */ }
     return
   }
   console.log('解压目录包含 ' + extractEntries.length + ' 个条目')
@@ -352,6 +353,8 @@ async function main() {
         console.log('备用方式覆盖完成')
       } catch (e2) {
         console.log('文件覆盖失败: ' + (e2.message || e2))
+        try { fs.unlinkSync(zipFile) } catch (e3) { /* ignore */ }
+        try { fs.rmSync(extractDir, { recursive: true, force: true }) } catch (e3) { /* ignore */ }
         return
       }
     }

@@ -1,6 +1,6 @@
 {
   "name": "zziot",
-  "version": "3.0.26.909",
+  "version": "3.0.26.910",
   "description": "ZzIOT 物联网显示面板",
   "scripts": {
     "dev": "vite --config 其他文件/vite.config.ts",
