@@ -1,4 +1,9 @@
-@echo off
+@ECHO OFF
+      echo 获取管理员权限
+(PUSHD "%~DP0") & (REG QUERY "HKU\S-1-5-19" >NUL 2>&1) || (
+    powershell -Command "Start-Process '%~sdpnx0' -Verb RunAs" && EXIT
+)
+
 title ZzIOT-内网服务 ^> 启动
 cd /d "%~dp0"
 

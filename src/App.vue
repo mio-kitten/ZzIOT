@@ -58,6 +58,7 @@ const showUpdateToast = ref(false)
 const updateToastType = ref<'update' | 'error'>('update')
 const toastData = ref({ versionType: '', newVersion: '', currentVersion: '' })
 const noProjectAlert = ref(false)
+const noProjectAlertClosing = ref(false)
 const triggerCreateCount = ref(0)
 const selectedWidgetId = ref<string | null>(null)
 const selectedWidget = computed(() => {
@@ -98,6 +99,9 @@ const flushPendingMessages = () => {
 
 // 快捷切换项目冷却（0.8s 内禁止重复切换）
 const isSwitchCooldown = ref(false)
+
+// 导入状态：导入中显示等待圆圈
+const isImporting = ref(false)
 
 const handleFullscreenChange = () => {
   if (document.fullscreenElement && isFullscreen.value) {
@@ -977,13 +981,26 @@ const handleExportProjects = () => {
   showExportModal.value = true
 }
 
+const handleCloseNoProjectAlert = () => {
+  noProjectAlertClosing.value = true
+  setTimeout(() => {
+    noProjectAlert.value = false
+    noProjectAlertClosing.value = false
+  }, 200)
+}
+
 const handleExportConfirm = async (projects: Project[]) => {
   showExportModal.value = false
   await exportProjects(projects)
 }
 
 const handleImportProjects = async (files: FileList) => {
-  await importMultipleProjects(files)
+  isImporting.value = true
+  try {
+    await importMultipleProjects(files)
+  } finally {
+    isImporting.value = false
+  }
 }
 
 const handleOpenIoTService = () => {
@@ -1194,11 +1211,12 @@ const editorMinimapViewport = ref({ left: 0, top: 0, width: 0, height: 0 })
 const updateEditorMinimap = () => {
   const wrap = scrollWrapperRef.value
   if (!wrap) return
+  const HEADER_H = 48
   editorMinimapViewport.value = {
     left: wrap.scrollLeft * EDITOR_MINIMAP_SCALE,
-    top: wrap.scrollTop * EDITOR_MINIMAP_SCALE,
+    top: (wrap.scrollTop + HEADER_H) * EDITOR_MINIMAP_SCALE,
     width: Math.min(wrap.clientWidth * EDITOR_MINIMAP_SCALE, EDITOR_MINIMAP_SIZE),
-    height: Math.min(wrap.clientHeight * EDITOR_MINIMAP_SCALE, EDITOR_MINIMAP_SIZE)
+    height: Math.min((wrap.clientHeight - HEADER_H) * EDITOR_MINIMAP_SCALE, EDITOR_MINIMAP_SIZE)
   }
 }
 
@@ -1319,16 +1337,21 @@ onMounted(() => {
   loadProjects()
   document.addEventListener('mousemove', handleCanvasPanMove)
   document.addEventListener('mouseup', handleCanvasPanEnd)
-  // 监视画布容器尺寸变化，自动更新小地图绿框
-  const wrap = scrollWrapperRef.value
-  if (wrap) {
-    const ro = new ResizeObserver(() => {
-      if (isFullscreen.value) updateMinimap()
-      if (showEditor.value) updateEditorMinimap()
-    })
-    ro.observe(wrap)
-    ;(window as any).__minimapResizeObserver = ro
-  }
+})
+
+// 监视画布容器尺寸变化（包括首次出现时），自动更新小地图绿框
+watch(scrollWrapperRef, (wrap, _oldWrap, onCleanup) => {
+  if (!wrap) return
+  const ro = new ResizeObserver(() => {
+    if (isFullscreen.value) updateMinimap()
+    if (showEditor.value) updateEditorMinimap()
+  })
+  ro.observe(wrap)
+  ;(window as any).__minimapResizeObserver = ro
+  onCleanup(() => {
+    ro.disconnect()
+    delete (window as any).__minimapResizeObserver
+  })
 })
 
 // 启动时后台检查更新，CMD警告关闭后显示右下角提示
@@ -1398,6 +1421,7 @@ onUnmounted(() => {
     
     <Header
       v-if="!isFullscreen"
+      :hide-content="showCmdWarning"
       :is-connected="isConnected"
       :project-id="currentProjectId || ''"
       :projects="projects"
@@ -1406,6 +1430,7 @@ onUnmounted(() => {
       :is-editor-mode="showEditor"
       :show-project-manager-btn="showProjectManagerBtn"
       :switch-cooldown="isSwitchCooldown"
+      :is-importing="isImporting"
       @connect="showPlatformConfig = true"
       @disconnect="disconnectFromPlatform"
       @open-project-manager="handleOpenProjectManager"
@@ -1416,6 +1441,8 @@ onUnmounted(() => {
       @openIoTService="handleOpenIoTService"
       @export-projects="handleExportProjects"
       @import-projects="handleImportProjects"
+      @import-start="isImporting = true"
+      @import-cancel="isImporting = false"
       @check-update="showCheckUpdate = true"
     />
     
@@ -1436,19 +1463,20 @@ onUnmounted(() => {
       @close="showCmdWarning = false"
     />
     
-    <ProjectManager
-      v-if="showProjectManager"
-      :projects="projects"
-      :trigger-create-count="triggerCreateCount"
-      @create="handleCreateProject"
-      @select="handleSelectProject"
-      @view="handleViewProject"
-      @delete="handleDeleteProject"
-      @rename="handleRenameProject"
-      @reorder="handleReorderProjects"
-    />
+    <template v-if="!showCmdWarning">
+      <ProjectManager
+        v-if="showProjectManager"
+        :projects="projects"
+        :trigger-create-count="triggerCreateCount"
+        @create="handleCreateProject"
+        @select="handleSelectProject"
+        @view="handleViewProject"
+        @delete="handleDeleteProject"
+        @rename="handleRenameProject"
+        @reorder="handleReorderProjects"
+      />
 
-    <div v-else class="panel-container">
+      <div v-else class="panel-container">
       <Transition name="slide-left" appear>
         <SidebarLeft 
           v-if="showEditor" 
@@ -1531,6 +1559,7 @@ onUnmounted(() => {
         />
       </Transition>
     </div>
+    </template>
     
     <!-- 连接光效 -->
     <RippleEffect :ripples="ripples" />
@@ -1563,7 +1592,7 @@ onUnmounted(() => {
       @close="showUpdateToast = false"
     />
 
-    <div v-if="noProjectAlert" class="modal-overlay" @click.self="noProjectAlert = false">
+    <div v-if="noProjectAlert" class="modal-overlay" :class="{ 'modal-closing': noProjectAlertClosing }" @click.self="handleCloseNoProjectAlert">
       <div class="modal-content">
         <div class="modal-header">
           <h2>提示</h2>
@@ -1572,7 +1601,7 @@ onUnmounted(() => {
           <p style="text-align: center; font-size: 15px; color: #666;">当前没有任何项目，请先创建一个项目后再导出。</p>
         </div>
         <div class="modal-footer">
-          <button class="btn btn-secondary" @click="noProjectAlert = false">知道了</button>
+          <button class="btn btn-secondary" @click="handleCloseNoProjectAlert">知道了</button>
         </div>
       </div>
     </div>
@@ -1657,7 +1686,8 @@ onUnmounted(() => {
 
 .app-container.editor-mode :deep(.sidebar-left),
 .app-container.editor-mode :deep(.sidebar-right) {
-  padding-top: 48px;
+  margin-top: 48px;
+  height: calc(100% - 48px);
 }
 
 /* 编辑模式：画布滚动容器 */
@@ -1724,10 +1754,13 @@ onUnmounted(() => {
   align-items: center;
   opacity: 1;
   transition: opacity 0.2s ease;
+  animation: modalFadeIn 0.25s ease backwards;
 }
 
-.modal-overlay.modal-closing {
+.modal-overlay.modal-closing,
+.modal-overlay.closing {
   opacity: 0;
+  animation: modalFadeOut 0.2s ease forwards;
 }
 
 .modal-content {
@@ -1740,11 +1773,36 @@ onUnmounted(() => {
   transform: scale(1);
   opacity: 1;
   transition: transform 0.2s ease, opacity 0.2s ease;
+  animation: modalBounceIn 0.4s ease backwards;
 }
 
-.modal-closing .modal-content {
+.modal-overlay.modal-closing .modal-content,
+.modal-overlay.closing .modal-content {
   transform: scale(0.95);
   opacity: 0;
+  animation: modalBounceOut 0.2s ease forwards;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes modalFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes modalBounceIn {
+  0%   { opacity: 0; transform: scale(0.8) translateY(10px); }
+  60%  { opacity: 1; transform: scale(1.04) translateY(-2px); }
+  80%  { transform: scale(0.97) translateY(1px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes modalBounceOut {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to   { opacity: 0; transform: scale(0.9) translateY(10px); }
 }
 
 .modal-header {

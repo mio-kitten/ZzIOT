@@ -122,7 +122,7 @@ async function main() {
     // Gitee 失败，静默降级
   }
 
-  // 方式 2：GitHub API（兜底）
+  // 方式 2：GitHub API
   if (!releases) {
     try {
       releases = JSON.parse(await httpGet(GITHUB_API))

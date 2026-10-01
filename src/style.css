@@ -94,9 +94,12 @@ html, body {
   border-right: 1px solid #e8e8e8;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .sidebar-left .search-box {
+  flex-shrink: 0;
   padding: 10px;
   border-bottom: 1px solid #e8e8e8;
 }
@@ -117,7 +120,6 @@ html, body {
 
 .sidebar-left .component-group {
   flex: 0 0 auto;
-  overflow-y: auto;
 }
 
 .sidebar-left .group-title {
@@ -169,6 +171,31 @@ html, body {
   border-left: 1px solid #e8e8e8;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sidebar-left::-webkit-scrollbar,
+.sidebar-right::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-left::-webkit-scrollbar-track,
+.sidebar-right::-webkit-scrollbar-track {
+  background: #e8e8e8;
+  border-radius: 4px;
+}
+
+.sidebar-left::-webkit-scrollbar-thumb,
+.sidebar-right::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.sidebar-left::-webkit-scrollbar-thumb:hover,
+.sidebar-right::-webkit-scrollbar-thumb:hover {
+  background: #222;
 }
 
 .btn {

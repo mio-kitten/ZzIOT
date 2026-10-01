@@ -127,6 +127,11 @@ const handleExport = () => {
   display: flex;
   justify-content: center;
   align-items: center;
+  transition: opacity 0.2s ease;
+}
+
+.modal-overlay.closing {
+  opacity: 0;
 }
 
 .modal-content {

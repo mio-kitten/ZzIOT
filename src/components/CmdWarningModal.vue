@@ -49,7 +49,7 @@ const handleClose = () => {
   align-items: center;
   justify-content: center;
   z-index: 99999;
-  animation: cmdFadeIn 0.3s ease;
+  animation: cmdFadeIn 0.3s ease backwards;
 }
 
 .cmd-warning-overlay.closing {
@@ -65,7 +65,7 @@ const handleClose = () => {
   width: 90%;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   text-align: center;
-  animation: cmdSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: cmdBounceIn 0.45s ease backwards;
 }
 
 .cmd-warning-overlay.closing .cmd-warning-modal {
@@ -82,15 +82,11 @@ const handleClose = () => {
   to { opacity: 0; }
 }
 
-@keyframes cmdSlideIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9) translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+@keyframes cmdBounceIn {
+  0%   { opacity: 0; transform: scale(0.8) translateY(-20px); }
+  60%  { opacity: 1; transform: scale(1.04) translateY(2px); }
+  80%  { transform: scale(0.97) translateY(-1px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 @keyframes cmdSlideOut {

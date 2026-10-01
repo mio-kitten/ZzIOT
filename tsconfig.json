@@ -5,9 +5,6 @@
     "module": "ESNext",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
-    /* ⚠️ 注意：必须用 "bundler" 而非 "node"（即 node10）
-       "moduleResolution": "node" 已在 TS 5.5+ 弃用，TS 7.0 将彻底移除。
-       Vite 项目应使用 "bundler"，它支持更现代的模块解析方式。            */
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
@@ -21,9 +18,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "types": ["vite/client", "node"],
-    /* ⚠️ 注意：不要添加 "baseUrl": "."
-       baseUrl 已在 TS 5.5+ 弃用，TS 7.0 将彻底移除。
-       没有 baseUrl 时，paths 的路径必须以 "./" 开头（相对 tsconfig.json 目录）。*/
     "paths": {
       "@/*": ["./src/*"]
     }

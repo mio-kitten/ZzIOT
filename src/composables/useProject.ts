@@ -41,11 +41,12 @@ const closeImportDialog = (callback?: () => void) => {
   }, 200)
 }
 
-/** 读取单个 ZIPD 文件内容为项目数据 */
+/** 读取单个 ZPDS / ZIPD 文件内容为项目数据 */
 const readProjectFile = (file: File): Promise<{ fileName: string; projects: Project[]; error?: string }> => {
   return new Promise((resolve) => {
-    if (!file.name.toLowerCase().endsWith('.zipd')) {
-      resolve({ fileName: file.name, projects: [], error: '请导入指定.zipd文件' })
+    const name = file.name.toLowerCase()
+    if (!name.endsWith('.zpds') && !name.endsWith('.zipd')) {
+      resolve({ fileName: file.name, projects: [], error: '请导入指定.zpds或.zipd文件' })
       return
     }
 
@@ -56,7 +57,7 @@ const readProjectFile = (file: File): Promise<{ fileName: string; projects: Proj
         const zip = await JSZip.loadAsync(buffer)
         const projectFile = zip.file('project.json')
         if (!projectFile) {
-          resolve({ fileName: file.name, projects: [], error: 'ZIPD 文件中未找到 project.json' })
+          resolve({ fileName: file.name, projects: [], error: 'ZPDS 文件中未找到 project.json' })
           return
         }
         const jsonStr = await projectFile.async('string')
@@ -68,7 +69,7 @@ const readProjectFile = (file: File): Promise<{ fileName: string; projects: Proj
         }
         resolve({ fileName: file.name, projects: data })
       } catch {
-        resolve({ fileName: file.name, projects: [], error: '无效的 ZIPD 文件' })
+        resolve({ fileName: file.name, projects: [], error: '无效的 ZPDS 文件' })
       }
     }
     reader.onerror = () => {
@@ -322,8 +323,8 @@ export function useProject() {
   };
 
   /**
-   * 导出单个项目为 ZIPD 文件（浏览器下载）
-   * ZIPD 格式：ZIP 压缩包，内含 project.json + images/ 目录
+   * 导出单个项目为 ZPDS 文件（浏览器下载）
+   * ZPDS 格式：ZIP 压缩包，内含 project.json + images/ 目录
    * @param project 要导出的项目
    */
   const exportProject = async (project: Project): Promise<boolean> => {
@@ -346,7 +347,7 @@ export function useProject() {
       }
     }
     const blob = await zip.generateAsync({ type: 'blob' })
-    const filename = `${project.name}.zipd`
+    const filename = `${project.name}.zpds`
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -359,7 +360,7 @@ export function useProject() {
   }
 
   /**
-   * 导出多个项目，每个项目单独导出为一个 ZIPD 文件（浏览器下载）
+   * 导出多个项目，每个项目单独导出为一个 ZPDS 文件（浏览器下载）
    * @param projects 要导出的项目列表
    */
   const exportProjects = async (projects: Project[]): Promise<boolean> => {
@@ -374,15 +375,16 @@ export function useProject() {
   };
 
   /**
-   * 从 ZIPD 文件导入项目（合并到现有项目列表）
-   * 仅接受 .zipd 格式
+   * 从 ZPDS / ZIPD 文件导入项目（合并到现有项目列表）
+   * 接受 .zpds 和 .zipd 格式
    */
   const importProjects = (file: File): Promise<boolean> => {
     return new Promise((resolve) => {
-      if (!file.name.toLowerCase().endsWith('.zipd')) {
+      const name = file.name.toLowerCase()
+      if (!name.endsWith('.zpds') && !name.endsWith('.zipd')) {
         importDialog.type = 'alert'
         importDialog.message = '导入失败'
-        importDialog.detail = '请导入指定.zipd文件'
+        importDialog.detail = '请导入指定.zpds或.zipd文件'
         importDialog.show = true
         importDialog.resolve = (_confirmed: boolean) => {
           closeImportDialog(() => resolve(false))
@@ -438,7 +440,7 @@ export function useProject() {
           if (!projectFile) {
             importDialog.type = 'alert'
             importDialog.message = '导入失败'
-            importDialog.detail = 'ZIPD 文件中未找到 project.json'
+            importDialog.detail = 'ZPDS 文件中未找到 project.json'
             importDialog.show = true
             importDialog.resolve = (_confirmed: boolean) => {
               closeImportDialog(() => resolve(false))
@@ -452,7 +454,7 @@ export function useProject() {
         } catch {
           importDialog.type = 'alert'
           importDialog.message = '导入失败'
-          importDialog.detail = '无效的 ZIPD 文件'
+          importDialog.detail = '无效的 ZPDS 文件'
           importDialog.show = true
           importDialog.resolve = (_confirmed: boolean) => {
             closeImportDialog(() => resolve(false))

@@ -248,6 +248,11 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   z-index: 10000;
+  transition: opacity 0.2s ease;
+}
+
+.modal-overlay.closing {
+  opacity: 0;
 }
 
 .modal-content {

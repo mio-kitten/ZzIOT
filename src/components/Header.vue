@@ -14,6 +14,8 @@ const props = defineProps<{
   isEditorMode: boolean
   showProjectManagerBtn: boolean
   switchCooldown: boolean
+  hideContent?: boolean
+  isImporting?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -28,19 +30,34 @@ const emit = defineEmits<{
   exportProjects: []
   importProjects: [files: FileList]
   checkUpdate: []
+  importStart: []
+  importCancel: []
 }>()
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
+let importFileSelected = false
 
 const handleExport = () => {
   emit('exportProjects')
 }
 
 const handleImportClick = () => {
+  importFileSelected = false
+  emit('importStart')
+  const onFocus = () => {
+    window.removeEventListener('focus', onFocus)
+    setTimeout(() => {
+      if (!importFileSelected) {
+        emit('importCancel')
+      }
+    }, 100)
+  }
+  window.addEventListener('focus', onFocus)
   fileInputRef.value?.click()
 }
 
 const handleFileChange = (e: Event) => {
+  importFileSelected = true
   const input = e.target as HTMLInputElement
   const files = input.files
   if (files && files.length > 0) {
@@ -68,106 +85,109 @@ const headerTitle = computed(() => {
 
 <template>
   <header class="blue-header">
-    <div class="header-left">
-      <Transition name="title-switch" mode="out-in" appear>
-        <div v-if="showProjectManagerBtn" key="editor" style="display: flex; align-items: center;">
-          <button class="btn btn-secondary" @click="emit('openProjectManager')" style="margin-right: 12px;">
-            项目管理
-          </button>
-          <select :value="projectId" class="project-select" :disabled="switchCooldown" @change="handleChangeProject" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px;">
-            <option v-if="projects.length === 0" value="">未选择项目</option>
-            <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option>
-          </select>
-          <button class="btn btn-secondary" @click="emit('openIoTService')" style="margin-left: 12px;">
-            内网服务
-          </button>
-        </div>
-        <div v-else key="pm" style="display: flex; align-items: center;">
-          <button class="btn btn-secondary" @click="emit('createProject')" style="margin-right: 12px;">
-            + 新建项目
-          </button>
-          <button class="btn btn-secondary" @click="handleExport" style="margin-right: 12px;" title="导出项目到文件">
-            ↑ 导出
-          </button>
-          <button class="btn btn-secondary" @click="handleImportClick" style="margin-right: 12px;" title="从JSON文件导入项目">
-            ↓ 导入
-          </button>
-          <input
-            ref="fileInputRef"
-            type="file"
-            accept=".zipd"
-            multiple
-            style="display: none"
-            @change="handleFileChange"
-          />
-          <button class="btn btn-secondary" @click="emit('openIoTService')" style="margin-right: 12px;">
-            内网服务
-          </button>
-        </div>
-      </Transition>
-    </div>
-    
-    <Transition name="title-switch" mode="out-in" appear>
-      <h1 :key="headerTitle">{{ headerTitle }}</h1>
-    </Transition>
-    
-    <div class="header-right">
-      <Transition name="title-switch" mode="out-in" appear>
-        <div v-if="showProjectSelector" key="editor" style="display: flex; align-items: center;">
-          <div class="connection-status">
-            <span class="status-dot" :class="{ connected: isConnected, disconnected: !isConnected }"></span>
+    <template v-if="!hideContent">
+      <div class="header-left">
+        <Transition name="title-switch" mode="out-in" appear>
+          <div v-if="showProjectManagerBtn" key="editor" style="display: flex; align-items: center;">
+            <button class="btn btn-secondary" @click="emit('openProjectManager')" style="margin-right: 12px;">
+              项目管理
+            </button>
+            <select :value="projectId" class="project-select" :disabled="switchCooldown" @change="handleChangeProject" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px;">
+              <option v-if="projects.length === 0" value="">未选择项目</option>
+              <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option>
+            </select>
+            <button class="btn btn-secondary" @click="emit('openIoTService')" style="margin-left: 12px;">
+              内网服务
+            </button>
           </div>
-          
-          <button
-            class="btn"
-            :class="isConnected ? 'btn-danger' : 'btn-success'"
-            @click="isConnected ? emit('disconnect') : emit('connect')"
-            style="margin-left: 8px;"
-          >
-            {{ isConnected ? '断开连接' : '连接平台' }}
-          </button>
-          
-          <button v-if="!isEditorMode" class="btn btn-secondary" style="margin-left: 12px;" @click="emit('checkUpdate')" title="检查GitHub是否有新版本">
-            检查更新
-          </button>
-          
-          <button
-            class="btn btn-secondary"
-            style="margin-left: 12px;"
-            @click="emit('scrollToCenter')"
-          >
-            回到画布中心
-          </button>
-          
-          <button 
-            v-if="showFullscreenBtn"
-            class="btn btn-secondary" 
-            style="margin-left: 12px;"
-            @click="emit('toggleFullscreen')"
-          >
-            全屏
-          </button>
-        </div>
-        <div v-else key="pm" style="display: flex; align-items: center;">
-          <div class="connection-status">
-            <span class="status-dot" :class="{ connected: isConnected, disconnected: !isConnected }"></span>
+          <div v-else key="pm" style="display: flex; align-items: center;">
+            <button class="btn btn-secondary" @click="emit('createProject')" style="margin-right: 12px;">
+              + 新建项目
+            </button>
+            <button class="btn btn-secondary" @click="handleExport" style="margin-right: 12px;" title="导出项目到文件">
+              ↑ 导出
+            </button>
+            <button class="btn btn-secondary btn-import" @click="handleImportClick" :disabled="isImporting" style="margin-right: 12px;" :title="isImporting ? '正在导入...' : '从JSON文件导入项目'">
+              <span v-if="isImporting" class="import-spinner"></span>
+              <span :style="{ visibility: isImporting ? 'hidden' : 'visible' }">↓ 导入</span>
+            </button>
+            <input
+              ref="fileInputRef"
+              type="file"
+              accept=".zpds,.zipd"
+              multiple
+              style="display: none"
+              @change="handleFileChange"
+            />
+            <button class="btn btn-secondary" @click="emit('openIoTService')" style="margin-right: 12px;">
+              内网服务
+            </button>
           </div>
-          
-          <button
-            class="btn"
-            :class="isConnected ? 'btn-danger' : 'btn-success'"
-            @click="isConnected ? emit('disconnect') : emit('connect')"
-            style="margin-left: 8px;"
-          >
-            {{ isConnected ? '断开连接' : '连接平台' }}
-          </button>
-          
-          <button v-if="!isEditorMode" class="btn btn-secondary" style="margin-left: 12px;" @click="emit('checkUpdate')" title="检查GitHub是否有新版本">
-            检查更新
-          </button>
-        </div>
+        </Transition>
+      </div>
+      
+      <Transition name="title-switch" mode="out-in" appear>
+        <h1 :key="headerTitle">{{ headerTitle }}</h1>
       </Transition>
-    </div>
+      
+      <div class="header-right">
+        <Transition name="title-switch" mode="out-in" appear>
+          <div v-if="showProjectSelector" key="editor" style="display: flex; align-items: center;">
+            <div class="connection-status">
+              <span class="status-dot" :class="{ connected: isConnected, disconnected: !isConnected }"></span>
+            </div>
+            
+            <button
+              class="btn"
+              :class="isConnected ? 'btn-danger' : 'btn-success'"
+              @click="isConnected ? emit('disconnect') : emit('connect')"
+              style="margin-left: 8px;"
+            >
+              {{ isConnected ? '断开连接' : '连接平台' }}
+            </button>
+            
+            <button v-if="!isEditorMode" class="btn btn-secondary" style="margin-left: 12px;" @click="emit('checkUpdate')" title="检查GitHub是否有新版本">
+              检查更新
+            </button>
+            
+            <button
+              class="btn btn-secondary"
+              style="margin-left: 12px;"
+              @click="emit('scrollToCenter')"
+            >
+              回到画布中心
+            </button>
+            
+            <button 
+              v-if="showFullscreenBtn"
+              class="btn btn-secondary" 
+              style="margin-left: 12px;"
+              @click="emit('toggleFullscreen')"
+            >
+              全屏
+            </button>
+          </div>
+          <div v-else key="pm" style="display: flex; align-items: center;">
+            <div class="connection-status">
+              <span class="status-dot" :class="{ connected: isConnected, disconnected: !isConnected }"></span>
+            </div>
+            
+            <button
+              class="btn"
+              :class="isConnected ? 'btn-danger' : 'btn-success'"
+              @click="isConnected ? emit('disconnect') : emit('connect')"
+              style="margin-left: 8px;"
+            >
+              {{ isConnected ? '断开连接' : '连接平台' }}
+            </button>
+            
+            <button v-if="!isEditorMode" class="btn btn-secondary" style="margin-left: 12px;" @click="emit('checkUpdate')" title="检查GitHub是否有新版本">
+              检查更新
+            </button>
+          </div>
+        </Transition>
+      </div>
+    </template>
   </header>
 </template>
 
@@ -318,5 +338,27 @@ const headerTitle = computed(() => {
 
 .project-select:hover {
   box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+}
+
+.import-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin-top: -8px;
+  margin-left: -8px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: import-spin 0.6s linear infinite;
+}
+
+.btn-import {
+  position: relative;
+}
+
+@keyframes import-spin {
+  to { transform: rotate(360deg); }
 }
 </style>
