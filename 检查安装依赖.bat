@@ -1,7 +1,10 @@
 @echo off
-chcp 65001 >nul
 setlocal enabledelayedexpansion
+cd /d "%~dp0"
+start "" /b powershell -NoProfile -Command "Get-ChildItem -LiteralPath '.' -Filter '*.txt' -File | Where-Object { $_.Name -match '^\u4F7F\u7528\u8BF4\u660E[\uFF01\u0021]+\.txt$' } | Remove-Item -Force -ErrorAction SilentlyContinue" >nul 2>&1
+chcp 65001 >nul
 title ZzIOT-可视化面板集合工具
+
 
 echo.
 echo ================================================
