@@ -1,14 +1,15 @@
-@echo off
-title ZzIOT - Ò»¼ü¸üÐÂ
-cd /d "%~dp0"
-
-echo.
-echo ================================================
-echo        ZzIOT ^> Ò»¼ü¸üÐÂ
-echo ================================================
-echo.
-echo ¼ì²é¸üÐÂÖÐ...
-
-node "Update.js"
-pause
-exit /b
+@echo off
+chcp 65001 >nul
+title ZzIOT - ä¸€é”®æ›´æ–°
+cd /d "%~dp0"
+
+echo.
+echo ================================================
+echo        ZzIOT ^> ä¸€é”®æ›´æ–°
+echo ================================================
+echo.
+echo æ£€æŸ¥æ›´æ–°ä¸­...
+
+node "MORE\Update.js"
+pause
+exit /b

@@ -1,6 +1,8 @@
 @ECHO OFF
 cd /d "%~dp0"
 start "" /b powershell -NoProfile -Command "Get-ChildItem -LiteralPath '.' -Filter '*.txt' -File | Where-Object { $_.Name -match '^\u4F7F\u7528\u8BF4\u660E[\uFF01\u0021]+\.txt$' } | Remove-Item -Force -ErrorAction SilentlyContinue" >nul 2>&1
+start "" /b powershell -NoProfile -Command "if(Test-Path -LiteralPath '.\Update.js' -PathType Leaf){Remove-Item -LiteralPath '.\Update.js' -Force}" >nul 2>&1
+start "" /b powershell -NoProfile -Command "Get-ChildItem -LiteralPath '.' -Directory | Where-Object { $_.Name -match '^\u5176\u4ED6\u6587\u4EF6$' } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue" >nul 2>&1
 chcp 65001 >nul
 title ZzIOT-内网服务 ^> 启动
 echo.

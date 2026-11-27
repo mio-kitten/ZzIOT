@@ -1,6 +1,6 @@
 /**
  * 更新检查工具
- * 通过 GitHub API 检查是否有新版本 Release
+ * 优先通过 Gitee API 检查新版本，Gitee 失败时自动降级到 GitHub API
  *
  * 版本类型规则：
  * - 测试版格式：X.X.X（如 2.4.1）或 X.X.X-后缀（如 2.4.1-Y）
@@ -12,6 +12,7 @@ import { APP_VERSION } from '@/version'
 
 const GITHUB_OWNER = 'mio-kitten'
 const GITHUB_REPO = 'ZzIOT'
+const GITEE_API = 'https://gitee.com/api/v5/repos/XUELING-NORTH/ZzIOT/releases?page=1&per_page=100'
 const GITHUB_API = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases`
 
 const TEST_VERSION_REGEX = /^\d+\.\d+\.\d+$/
@@ -83,118 +84,138 @@ function getVersionTypeLabel(type: 'stable' | 'test'): string {
   return type === 'stable' ? '稳定版' : '测试版'
 }
 
+async function fetchWithTimeout(url: string): Promise<string> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 10000)
+  try {
+    const separator = url.includes('?') ? '&' : '?'
+    const response = await fetch(url + separator + '_t=' + Date.now(), {
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/vnd.github.v3+json, application/json',
+        'User-Agent': 'ZzIOT-UpdateChecker'
+      }
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
+    }
+    return await response.text()
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+// 归一化 releases 字段：Gitee 用 download_url，GitHub 用 browser_download_url
+function normalizeReleases(data: any): any[] | null {
+  if (!Array.isArray(data) || data.length === 0) return null
+  return data.map((r: any) => ({
+    tag_name: r.tag_name,
+    name: r.name || r.tag_name,
+    assets: (r.assets || []).map((a: any) => ({
+      name: a.name,
+      browser_download_url: a.browser_download_url || a.download_url || a.url,
+      size: a.size || 0,
+    })),
+    zipball_url: r.zipball_url || r.tarball_url || '',
+    published_at: r.published_at || r.created_at || '',
+  }))
+}
+
 async function checkForUpdates(): Promise<UpdateCheckResult> {
   const currentNumeric = extractNumericVersion(APP_VERSION)
   const currentType = getVersionType(currentNumeric)
 
+  let releases: any[] | null = null
+  let sourceError = ''
+
+  // 线路 1：Gitee API
   try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 10000)
+    const raw = await fetchWithTimeout(GITEE_API)
+    releases = normalizeReleases(JSON.parse(raw))
+    if (releases) {
+      sourceError = ''
+    }
+  } catch (e: any) {
+    // Gitee 失败，静默降级
+  }
 
-    const response = await fetch(GITHUB_API + '?_t=' + Date.now(), {
-      signal: controller.signal,
-      headers: {
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'ZzIOT-UpdateChecker'
+  // 线路 2：GitHub API
+  if (!releases) {
+    try {
+      const raw = await fetchWithTimeout(GITHUB_API)
+      releases = normalizeReleases(JSON.parse(raw))
+      if (!releases) {
+        sourceError = '暂无 Release 发布'
       }
-    })
-
-    clearTimeout(timeoutId)
-
-    if (!response.ok) {
-      return {
-        hasUpdate: false,
-        currentVersion: currentNumeric,
-        versionType: currentType,
-        latestRelease: null,
-        error: `GitHub API 请求失败 (${response.status})`
-      }
+    } catch (e: any) {
+      sourceError = e?.name === 'AbortError' ? '请求超时' : '无法连接 Gitee 与 GitHub'
     }
+  }
 
-    const releases = await response.json()
-
-    if (!Array.isArray(releases) || releases.length === 0) {
-      return {
-        hasUpdate: false,
-        currentVersion: currentNumeric,
-        versionType: currentType,
-        latestRelease: null,
-        error: '暂无 Release 发布'
-      }
-    }
-
-    const matchTypeReleases = releases
-      .filter((r: any) => {
-        const tag = extractNumericVersion(r.tag_name || '')
-        if (currentType === 'stable') {
-          return isStableVersion(tag)
-        } else {
-          return isTestVersion(tag)
-        }
-      })
-      .sort((a: any, b: any) => {
-        const tagA = extractNumericVersion(a.tag_name || '')
-        const tagB = extractNumericVersion(b.tag_name || '')
-        return compareVersions(tagB, tagA)
-      })
-
-    if (matchTypeReleases.length === 0) {
-      return {
-        hasUpdate: false,
-        currentVersion: currentNumeric,
-        versionType: currentType,
-        latestRelease: null,
-        error: `暂无${getVersionTypeLabel(currentType)} Release`
-      }
-    }
-
-    const latest = matchTypeReleases[0]
-    const latestTag = extractNumericVersion(latest.tag_name || '')
-    const zipAsset = latest.assets?.find((a: any) =>
-  a.name?.endsWith('.zip') || a.name?.endsWith('.7z') || a.name?.endsWith('.rar')
-)
-
-    const directUrl = zipAsset?.browser_download_url || latest.zipball_url || ''
-
-    const latestRelease: ReleaseInfo = {
-      tag: latest.tag_name || latestTag,
-      version: latestTag,
-      name: latest.name || latest.tag_name || '',
-      body: latest.body || '',
-      publishedAt: latest.published_at || '',
-      downloadUrl: directUrl,
-      filename: zipAsset?.name || `${latestTag}.zip`,
-      mirrors: DOWNLOAD_MIRRORS.map(m => ({
-        name: m.name,
-        url: m.url ? m.url + directUrl.replace(/^https?:\/\//, '') : directUrl
-      }))
-    }
-
-    const hasUpdate = compareVersions(latestTag, currentNumeric) > 0
-
-    return {
-      hasUpdate,
-      currentVersion: currentNumeric,
-      versionType: currentType,
-      latestRelease
-    }
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
-      return {
-        hasUpdate: false,
-        currentVersion: currentNumeric,
-        versionType: currentType,
-        latestRelease: null,
-        error: '请求超时'
-      }
-    }
+  if (!releases || releases.length === 0) {
     return {
       hasUpdate: false,
       currentVersion: currentNumeric,
       versionType: currentType,
       latestRelease: null,
-      error: error.message || '网络错误'
+      error: sourceError || '暂无 Release 发布'
     }
+  }
+
+  const matchTypeReleases = releases
+    .filter((r: any) => {
+      const tag = extractNumericVersion(r.tag_name || '')
+      if (currentType === 'stable') {
+        return isStableVersion(tag)
+      } else {
+        return isTestVersion(tag)
+      }
+    })
+    .sort((a: any, b: any) => {
+      const tagA = extractNumericVersion(a.tag_name || '')
+      const tagB = extractNumericVersion(b.tag_name || '')
+      return compareVersions(tagB, tagA)
+    })
+
+  if (matchTypeReleases.length === 0) {
+    return {
+      hasUpdate: false,
+      currentVersion: currentNumeric,
+      versionType: currentType,
+      latestRelease: null,
+      error: `暂无${getVersionTypeLabel(currentType)} Release`
+    }
+  }
+
+  const latest = matchTypeReleases[0]
+  const latestTag = extractNumericVersion(latest.tag_name || '')
+  const zipAsset = latest.assets?.find((a: any) =>
+    a.name?.endsWith('.zip') || a.name?.endsWith('.7z') || a.name?.endsWith('.rar')
+  )
+
+  const directUrl = zipAsset?.browser_download_url || latest.zipball_url || ''
+
+  const latestRelease: ReleaseInfo = {
+    tag: latest.tag_name || latestTag,
+    version: latestTag,
+    name: latest.name || latest.tag_name || '',
+    body: latest.body || '',
+    publishedAt: latest.published_at || '',
+    downloadUrl: directUrl,
+    filename: zipAsset?.name || `${latestTag}.zip`,
+    mirrors: DOWNLOAD_MIRRORS.map(m => ({
+      name: m.name,
+      url: m.url ? m.url + directUrl.replace(/^https?:\/\//, '') : directUrl
+    }))
+  }
+
+  const hasUpdate = compareVersions(latestTag, currentNumeric) > 0
+
+  return {
+    hasUpdate,
+    currentVersion: currentNumeric,
+    versionType: currentType,
+    latestRelease
   }
 }
 

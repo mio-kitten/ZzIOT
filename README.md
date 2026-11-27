@@ -3,7 +3,7 @@
 # ZzIOT 
 ### > 一个物联网数据可视化面板 + 本地内网创建服务(包括无网) 的集合体工具 <
 ---
-[![version](https://img.shields.io/badge/3.1.0-orange)](https://github.com/mio-kitten/zziot)
+[![version](https://img.shields.io/badge/3.1.1-orange)](https://github.com/mio-kitten/zziot)
 [![platform](https://img.shields.io/badge/Windows%2010%2B-red)](https://github.com/mio-kitten/zziot)
 [![Node.js](https://img.shields.io/badge/Node.js-339933)](https://nodejs.org/)
 [![Vue](https://img.shields.io/badge/Vue%203-4FC08D)](https://vuejs.org/)
@@ -22,7 +22,7 @@
 | **组件数量** | 13 个 |
 | **状态** | 开发中 |
 |**正式版本** | 3.0.26.1001 | 
-|**测试版本** | 3.1.0 | 
+|**测试版本** | 3.1.1 | 
 
 ---
 
@@ -51,7 +51,7 @@
 
 ### 🎈项目管理界面
 
-![项目管理界面](其他文件/屏幕截图_5-9-2026_1917_localhost.jpeg)
+![项目管理界面](MORE/屏幕截图_5-9-2026_1917_localhost.jpeg)
 
 ---
 
@@ -88,11 +88,11 @@
 
 ### 🎈组件库
 
-![组件库](其他文件/222.png)
+![组件库](MORE/222.png)
 
 ### 🎈数据管理界面
 
-![数据管理界面](其他文件/屏幕截图_5-9-2026_1270_192.168.1.19.jpeg)
+![数据管理界面](MORE/屏幕截图_5-9-2026_1270_192.168.1.19.jpeg)
 
 
 ---

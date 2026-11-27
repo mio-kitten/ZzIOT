@@ -1,13 +1,13 @@
 {
   "name": "zziot",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "ZzIOT 物联网显示面板",
   "scripts": {
-    "dev": "vite --config 其他文件/vite.config.ts",
+    "dev": "vite --config MORE/vite.config.ts",
     "server": "node server/index.js",
     "start": "concurrently \"npm run dev\" \"npm run server\"",
-    "build": "vue-tsc && vite build --config 其他文件/vite.config.ts",
-    "preview": "vite preview --config 其他文件/vite.config.ts"
+    "build": "vue-tsc && vite build --config MORE/vite.config.ts",
+    "preview": "vite preview --config MORE/vite.config.ts"
   },
   "dependencies": {
     "aedes": "^1.1.1",

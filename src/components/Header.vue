@@ -146,7 +146,7 @@ const headerTitle = computed(() => {
               {{ isConnected ? '断开连接' : '连接平台' }}
             </button>
             
-            <button v-if="!isEditorMode" class="btn btn-secondary" style="margin-left: 12px;" @click="emit('checkUpdate')" title="检查GitHub是否有新版本">
+            <button v-if="!isEditorMode" class="btn btn-secondary" style="margin-left: 12px;" @click="emit('checkUpdate')" title="检查是否有新版本">
               检查更新
             </button>
             
@@ -181,7 +181,7 @@ const headerTitle = computed(() => {
               {{ isConnected ? '断开连接' : '连接平台' }}
             </button>
             
-            <button v-if="!isEditorMode" class="btn btn-secondary" style="margin-left: 12px;" @click="emit('checkUpdate')" title="检查GitHub是否有新版本">
+            <button v-if="!isEditorMode" class="btn btn-secondary" style="margin-left: 12px;" @click="emit('checkUpdate')" title="检查是否有新版本">
               检查更新
             </button>
           </div>

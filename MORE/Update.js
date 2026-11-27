@@ -4,6 +4,8 @@ const path = require('path')
 const { execSync } = require('child_process')
 
 // ========== 配置 ==========
+// 项目根目录（本脚本位于 MORE/ 子目录内，上一级即项目根目录）
+const ROOT_DIR = path.resolve(__dirname, '..')
 const GITEE_API = 'https://gitee.com/api/v5/repos/XUELING-NORTH/ZzIOT/releases?page=1&per_page=100'
 const GITHUB_API = 'https://api.github.com/repos/mio-kitten/ZzIOT/releases'
 const GITEE_REPO = 'XUELING-NORTH/ZzIOT'
@@ -81,23 +83,25 @@ function downloadFile(url, destPath, expectedSize) {
 // ========== 主流程 ==========
 
 async function main() {
-  // 解析参数
-  const args = process.argv.slice(2)
-  const isTest = args.includes('test') || args.includes('--test')
-  const currentType = isTest ? 'test' : 'stable'
-  const typeLabel = isTest ? '测试版' : '稳定版'
-
   // 清理上次更新残留的旧文件
-  try { fs.unlinkSync(path.join(__dirname, '一键更新.old.bat')) } catch (e) { /* ignore */ }
-  try { fs.unlinkSync(path.join(__dirname, '一键更新.old.js')) } catch (e) { /* ignore */ }
+  try { fs.unlinkSync(path.join(ROOT_DIR, '一键更新.old.bat')) } catch (e) { /* ignore */ }
+  try { fs.unlinkSync(path.join(ROOT_DIR, '一键更新.old.js')) } catch (e) { /* ignore */ }
 
   // 读取本地版本
-  const pkgPath = path.join(__dirname, 'package.json')
+  const pkgPath = path.join(ROOT_DIR, 'package.json')
   if (!fs.existsSync(pkgPath)) {
     console.log('未找到 package.json，请确保在项目目录下运行。')
     return
   }
   const currentVer = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')).version || '0'
+
+  // 解析参数（可选强制指定类型），未指定时按本地版本号格式自动判断：X.X.X=测试版，X.X.X.X=稳定版
+  const args = process.argv.slice(2)
+  const forceTest = args.includes('test') || args.includes('--test')
+  const autoTest = TEST_REGEX.test(extractNumeric(currentVer))
+  const isTest = forceTest || autoTest
+  const currentType = isTest ? 'test' : 'stable'
+  const typeLabel = isTest ? '测试版' : '稳定版'
 
   let releases = null
 
@@ -334,7 +338,7 @@ async function main() {
   // 覆盖文件
   console.log('')
   console.log('正在覆盖文件...')
-  const projectDir = process.cwd()
+  const projectDir = ROOT_DIR
 
   try {
     execSync(
